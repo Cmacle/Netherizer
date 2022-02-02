@@ -9,7 +9,7 @@ def encode(image_path, file_path, bit_depth):
     having less impact on the image and having less data capacity.
     """
     file_byte_list = file_to_byte_list(file_path, bit_depth)
-#    byte_list_to_file(file_byte_list, "")
+    byte_list_to_file(file_byte_list, "")
     image = Image.open(image_path)
     pixels = image.getdata()
     #print(pixels[1])
@@ -36,6 +36,15 @@ def byte_list_to_file(byte_list, output_path):
     file_name = "".join(file_name)
     print(f'File Name: {file_name}')
 
+    binary_string = ""
+    for index in range(4):
+        #Get the next byte and turn it into a binary string
+        next_byte = format(int(byte_list.pop(0).decode()), "b")
+        next_byte = next_byte.rjust(8, "0") #Pad the string to 8 characters
+        binary_string = binary_string + next_byte
+    file_length = int(binary_string, 2)
+    print(f'File Length: {file_length}')
+
     with open(file_name, "wb") as file:
         print("Writing bytes to file:  ")
         while byte_list:
@@ -55,7 +64,8 @@ def int_to_four_byte_list(x):
         byte_list.append(binary_string[index : index + 8])
     
     for index, string in enumerate(byte_list):
-        byte_list[index] = int(byte_list[index], 2)
+        #Turn each binary string into an int then a byte
+        byte_list[index] = int(byte_list[index], 2) 
         byte_list[index] = int_to_byte(byte_list[index])
 
     return byte_list
@@ -81,10 +91,9 @@ def file_to_byte_list(file_path, bit_depth):
     file_size = os.path.getsize(file_path) #Get the file size
     #Turn the file size into a byte list with 4 bytes
     file_size_byte_list = int_to_four_byte_list(file_size)
-    byte_list.append(file_size_byte_list) #Append the list
-    
-    
-
+    for byte in file_size_byte_list: #Append the list
+        byte_list.append(byte)
+ 
     with open(file_path, "rb") as file:
         while True:
             byte = file.read(1)
@@ -95,5 +104,5 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    encode("C:\\Users\\cmacl\\Pictures\\test.png", "C:\\Users\\cmacl\\Pictures\\test.png", "2")
+    encode("C:/Users/cmacl/Pictures/test.jpg", "C:/Users/cmacl/Pictures/test.jpg", "2")
     
