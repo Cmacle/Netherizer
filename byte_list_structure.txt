@@ -1,0 +1,5 @@
+1 Byte bit depth
+1 Byte File Name Length
+X Bytes File Name
+4 Bytes File Size
+X Bytes File Information

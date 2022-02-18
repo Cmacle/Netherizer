@@ -1,7 +1,7 @@
 import os
 from PIL import Image
 
-def encode(image_path, file_path, bit_depth):
+def encode(image_path, file_path, bit_depth, output_path):
     """
     This will take the input image and file to be hidden within
     the input image. It will then overwrite LSB pixel data in
@@ -9,18 +9,103 @@ def encode(image_path, file_path, bit_depth):
     having less impact on the image and having less data capacity.
     """
     file_byte_list = file_to_byte_list(file_path, bit_depth)
-    byte_list_to_file(file_byte_list, "")
+    #byte_list_to_file(file_byte_list, "")
     image = Image.open(image_path)
     pixels = image.getdata()
-    #print(pixels[1])
+    print(len(pixels))
+    if os.path.getsize(file_path) <= max_input_size(image_path, bit_depth):
+        new_im_data = []
+        bit_list = bytes_to_bit_list(file_byte_list)
+        #print(file_byte_list[0])
+        #print(bit_list[0:8])
+        #print(bit_list)
+        if bit_depth == 1:
+            test_output = []
+            index = 0
+            for pixel in pixels:
+                new_pixel = []
+                for num in range(3):
+                    color = pixel[num]
+                    if bit_list:
+                        next_bit = bit_list.pop(0)
+                        next_bit_even = next_bit%2==0
+                        color_value_even = color%2==0
+                        #test_output.append(f'Index: {index}')
+                        #index += 1
+                        #test_output.append(next_bit)
+                        #test_output.append(color)
+                        if next_bit_even == color_value_even: 
+                            #if both the next bit and color value are even
+                            #add the number as is
+                            new_pixel.append(color)
+                            #test_output.append(color)
+                        elif next_bit_even:
+                            new_pixel.append(color-1)
+                            #test_output.append(color-1)
+                        else:
+                            new_pixel.append(color+1)
+                            #test_output.append(color+1)
+                    else:
+                        new_pixel.append(color)
+                while(len(pixel) > len(new_pixel)):
+                    new_pixel.append(pixel[len(new_pixel)])
+                new_im_data.append(tuple(new_pixel))
+        #print(new_im_data)
+        #print(test_output[0:32])
+        #print(new_im_data[0:8])
+        output_image(new_im_data, image, output_path)
+        print("Done")
 
-
-def decode(image, output_path):
+def decode(image_path, output_path):
     """
     This will take an image that has been encoded previously and
     output the file that was encoded into the image to the output_path.
     """
-    pass
+    image = Image.open(image_path)
+    pixels = image.getdata()
+    bit_depth = []
+    print("DECODING")
+    for i in range(3):
+        for num in range(3):
+            color = pixels[i][num]
+            if len(bit_depth) < 8:
+                if color%2==0:
+                    bit_depth.append("0")
+                else:
+                    bit_depth.append("1")
+    #print(test_output)
+    #print(bit_depth)
+    bit_depth = bit_list_to_byte_list(bit_depth)
+    bit_depth = int(bit_depth.decode('UTF-8'))
+    print(f'Bit Depth: {bit_depth}')
+
+    file_name_length = []#Make a list for the file name length
+    color = pixels[2][3]#get the data from the remaining color value in the third pixel 
+    if color%2==0:
+        file_name_length.append("0")
+    else:
+        file_name_length.append("1")
+
+    for i in range(3,6):
+        for num in range(3):
+            color = pixels[i][num]
+            if len(file_name_length) < 8:
+                if color%2==0:
+                    file_name_length.append("0")
+                else:
+                    file_name_length.append("1")
+    file_name_length = bit_list_to_byte_list(file_name_length)
+    file_name_length = int(file_name_length.decode('UTF-8'))
+    print(f'File Name Length: {file_name_length}')
+
+def output_image(image_data, image, output_path):
+    new_image = Image.new(image.mode, image.size)
+    new_image.putdata(image_data)
+    new_image.save(output_path, format="PNG")
+
+def max_input_size(image_path, bit_depth):
+    #This will calculate the largest possible file that can be encoded
+    return 10000000
 
 def byte_list_to_file(byte_list, output_path):
     #For testing purposes
@@ -49,11 +134,26 @@ def byte_list_to_file(byte_list, output_path):
         print("Writing bytes to file:  ")
         while byte_list:
             file.write(byte_list.pop(0))
-            
 
+def bit_list_to_byte_list(bit_list):
+    #This takes a list of bits and returns a list of bytes
+    #input length must be divisible by 8
+    bit_string = "".join(bit_list)
+    return int(bit_string, 2).to_bytes(len(bit_string) // 8, byteorder='big')
+            
 def int_to_byte(x):
     #Turns an int into a string then a byte
     return str(x).encode()
+
+def bytes_to_bit_list(byte_list):
+    bit_list = []
+    for byte in byte_list:
+        hold = []
+        for i in range(8):
+                hold.insert(0, (byte[0] >> i) & 1)
+        for bit in hold:
+            bit_list.append(bit)
+    return bit_list
 
 def int_to_four_byte_list(x):
     byte_list = []
@@ -104,5 +204,6 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    encode("C:/Users/cmacl/Pictures/test.jpg", "C:/Users/cmacl/Pictures/test.jpg", "2")
+    encode("test2.png", "input.txt", 1, "output.png")
+    decode("output.png", "")
     
