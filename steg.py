@@ -134,6 +134,7 @@ def decode(image_path, output_path):
         with open("Realoutput.jpg", "wb") as file:
             print("Writing bytes to file:  ")
             file.write(file_data)
+            
 
 def output_image(image_data, image, output_path):
     new_image = Image.new(image.mode, image.size)

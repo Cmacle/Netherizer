@@ -1,6 +1,7 @@
 env/
 __pycache__/
 output/
+test/
 test.txt
 test.png
 test2.png
@@ -10,3 +11,4 @@ input.txt
 input2.png
 output.jpg
 output.png
+Realoutput.jpg
