@@ -63,40 +63,46 @@ def decode(image_path, output_path):
     """
     image = Image.open(image_path)
     pixels = image.getdata()
+    colors = []
+    #create a list for the color values from every pixel
+    for pixel in pixels:
+        for i in range(3):
+            colors.append(pixel[i])
     bit_depth = []
     print("DECODING")
-    for i in range(3):
-        for num in range(3):
-            color = pixels[i][num]
-            if len(bit_depth) < 8:
-                if color%2==0:
-                    bit_depth.append("0")
-                else:
-                    bit_depth.append("1")
-    #print(test_output)
-    #print(bit_depth)
+    #Get the Bit Depth from the first 8 color values
+    for i in range(8):
+        color = colors[i]
+        if len(bit_depth) < 8:
+            if color%2==0:
+                bit_depth.append("0")
+            else:
+                bit_depth.append("1")
     bit_depth = bit_list_to_byte_list(bit_depth)
     bit_depth = int(bit_depth.decode('UTF-8'))
     print(f'Bit Depth: {bit_depth}')
-
-    file_name_length = []#Make a list for the file name length
-    color = pixels[2][3]#get the data from the remaining color value in the third pixel 
-    if color%2==0:
-        file_name_length.append("0")
-    else:
-        file_name_length.append("1")
-
-    for i in range(3,6):
-        for num in range(3):
-            color = pixels[i][num]
-            if len(file_name_length) < 8:
-                if color%2==0:
-                    file_name_length.append("0")
-                else:
-                    file_name_length.append("1")
-    file_name_length = bit_list_to_byte_list(file_name_length)
-    file_name_length = int(file_name_length.decode('UTF-8'))
-    print(f'File Name Length: {file_name_length}')
+    
+    if bit_depth == 1:
+        file_name_length = []#Make a list for the file name length
+        for i in range(8,16):
+            color = colors[i]
+            if color%2==0:
+                file_name_length.append("0")
+            else:
+                file_name_length.append("1")
+        file_name_length = bit_list_to_byte_list(file_name_length)
+        file_name_length = int(file_name_length.decode('UTF-8'))
+        print(f'File Name Length: {file_name_length}')
+        file_name = []
+        for i in range(16, file_name_length*8+16):
+            color = colors[i]
+            if color%2==0:
+                file_name.append("0")
+            else:
+                file_name.append("1")
+        file_name = bit_list_to_byte_list(file_name)
+        file_name = file_name.decode('UTF-8')
+        print(f'File Name: {file_name}')
 
 def output_image(image_data, image, output_path):
     new_image = Image.new(image.mode, image.size)
