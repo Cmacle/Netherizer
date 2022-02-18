@@ -13,7 +13,9 @@ def encode(image_path, file_path, bit_depth, output_path):
     image = Image.open(image_path)
     pixels = image.getdata()
     print(len(pixels))
-    if os.path.getsize(file_path) <= max_input_size(image_path, bit_depth):
+    print(pixels[0])
+    width, height = image.size
+    if os.path.getsize(file_path) <= max_input_size(width, height, bit_depth, len(os.path.basename(file_path))):
         new_im_data = []
         bit_list = bytes_to_bit_list(file_byte_list)
         #print(file_byte_list[0])
@@ -50,6 +52,7 @@ def encode(image_path, file_path, bit_depth, output_path):
                 while(len(pixel) > len(new_pixel)):
                     new_pixel.append(pixel[len(new_pixel)])
                 new_im_data.append(tuple(new_pixel))
+                print(len(new_im_data))
         #print(new_im_data)
         #print(test_output[0:32])
         #print(new_im_data[0:8])
@@ -72,7 +75,7 @@ def decode(image_path, output_path):
     print("DECODING")
     #Get the Bit Depth from the first 8 color values
     for i in range(8):
-        color = colors[i]
+        color = colors.pop(0)
         if len(bit_depth) < 8:
             if color%2==0:
                 bit_depth.append("0")
@@ -84,8 +87,8 @@ def decode(image_path, output_path):
     
     if bit_depth == 1:
         file_name_length = []#Make a list for the file name length
-        for i in range(8,16):
-            color = colors[i]
+        for i in range(24):
+            color = colors.pop(0)
             if color%2==0:
                 file_name_length.append("0")
             else:
@@ -93,9 +96,11 @@ def decode(image_path, output_path):
         file_name_length = bit_list_to_byte_list(file_name_length)
         file_name_length = int(file_name_length.decode('UTF-8'))
         print(f'File Name Length: {file_name_length}')
+        #Get the file name from the data
         file_name = []
-        for i in range(16, file_name_length*8+16):
-            color = colors[i]
+        #Get 8 bits for each character starting from the 16th
+        for i in range(file_name_length*8):
+            color = colors.pop(0)
             if color%2==0:
                 file_name.append("0")
             else:
@@ -103,15 +108,45 @@ def decode(image_path, output_path):
         file_name = bit_list_to_byte_list(file_name)
         file_name = file_name.decode('UTF-8')
         print(f'File Name: {file_name}')
+        #Get the file length
+        file_length = []
+        for i in range(88):
+            color = colors.pop(0)
+            if color%2==0:
+                file_length.append("0")
+            else:
+                file_length.append("1")
+        file_length = bit_list_to_byte_list(file_length)
+        print(file_length)
+        file_length = int(file_length.decode('UTF-8'))
+        print(f'File Length: {file_length} Bytes')
+        #Get the file information
+        file_data = []
+        hold = file_length*8
+        for i in range(file_length*8):
+            color = colors[i]
+            file_data.append(str(color%2))
+            #print(f'{i} : {i/hold*100}%')
+        file_data = bit_list_to_byte_list(file_data)
+        print(file_data)
+        #Write the data to a file
+        output_location = os.path.join(output_path, file_name)
+        with open("Realoutput.jpg", "wb") as file:
+            print("Writing bytes to file:  ")
+            file.write(file_data)
 
 def output_image(image_data, image, output_path):
     new_image = Image.new(image.mode, image.size)
     new_image.putdata(image_data)
     new_image.save(output_path, format="PNG")
 
-def max_input_size(image_path, bit_depth):
+def max_input_size(width, height, bit_depth, file_name_length = None):
     #This will calculate the largest possible file that can be encoded
-    return 10000000
+    #The file_name_length is optional
+    max_size = (width*height*3)/8
+    if file_name_length:
+        max_size -= file_name_length
+    return max_size
 
 def byte_list_to_file(byte_list, output_path):
     #For testing purposes
@@ -161,23 +196,6 @@ def bytes_to_bit_list(byte_list):
             bit_list.append(bit)
     return bit_list
 
-def int_to_four_byte_list(x):
-    byte_list = []
-    binary_string = format(x, "b") #Turn the int to a binary string
-    binary_string = binary_string.rjust(32, "0") #pad the string to 32
-    for index in range(0, len(binary_string), 8):
-        #Break the string up into 4 8 character strings
-        byte_list.append(binary_string[index : index + 8])
-    
-    for index, string in enumerate(byte_list):
-        #Turn each binary string into an int then a byte
-        byte_list[index] = int(byte_list[index], 2) 
-        byte_list[index] = int_to_byte(byte_list[index])
-
-    return byte_list
-
-
-
 def file_to_byte_list(file_path, bit_depth):
     """
     This will take a file and return a list of bytes so that it can be
@@ -188,17 +206,21 @@ def file_to_byte_list(file_path, bit_depth):
     byte_list = []   #Declare the Byte list that will be returned
     byte_list.append(int_to_byte(bit_depth))   #Appends the bit depth to the list as a byte
     file_name = os.path.basename(file_path)   #Get the file name from the path
-    file_name_length = len(file_name)   #Get the length of the file name
-    byte_list.append(int_to_byte(file_name_length))   #Appends the length
+    print(file_name)
+    file_name_length = len(file_name) #Get the length of the file name
+    file_name_length = str(file_name_length).rjust(3, "0") #Change to a string and pad to 3 characters
+    for character in file_name_length:
+        byte_list.append(character.encode())
 
     for letter in file_name: #Append the letters of the name to the list
         byte_list.append(letter.encode())
 
     file_size = os.path.getsize(file_path) #Get the file size
-    #Turn the file size into a byte list with 4 bytes
-    file_size_byte_list = int_to_four_byte_list(file_size)
-    for byte in file_size_byte_list: #Append the list
-        byte_list.append(byte)
+    #Turn the file size into a string and pad it to 11 characters
+    file_size = str(file_size).rjust(11, "0")
+    print(file_size)
+    for letter in file_size: #Append the list
+        byte_list.append(letter.encode())
  
     with open(file_path, "rb") as file:
         while True:
@@ -210,6 +232,6 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    encode("test2.png", "input.txt", 1, "output.png")
-    decode("output.png", "")
+    #encode("test.jfif", "test.jpg", 1, "output.png")
+    decode("output.png", "/output")
     
