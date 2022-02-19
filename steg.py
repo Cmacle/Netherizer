@@ -24,35 +24,43 @@ def encode(image_path, file_path, bit_depth, output_path):
         if bit_depth == 1:
             test_output = []
             index = 0
-            for pixel in pixels:
+            Done = False
+            bit_list_len = len(bit_list)
+            bit_list_index = 0
+            transparency = False
+            pixel_index = 0
+            if len(pixels[0]) > 3:
+                transparency = True
+            while bit_list_index+1 < bit_list_len:
+                pixel = pixels[pixel_index]
+                pixel_index+=1
                 new_pixel = []
                 for num in range(3):
                     color = pixel[num]
-                    if bit_list:
-                        next_bit = bit_list.pop(0)
-                        next_bit_even = next_bit%2==0
-                        color_value_even = color%2==0
-                        #test_output.append(f'Index: {index}')
-                        #index += 1
-                        #test_output.append(next_bit)
-                        #test_output.append(color)
-                        if next_bit_even == color_value_even: 
-                            #if both the next bit and color value are even
-                            #add the number as is
-                            new_pixel.append(color)
-                            #test_output.append(color)
-                        elif next_bit_even:
-                            new_pixel.append(color-1)
-                            #test_output.append(color-1)
-                        else:
-                            new_pixel.append(color+1)
-                            #test_output.append(color+1)
+                    if(bit_list):
+                        next_bit = bit_list[bit_list_index]
+                        bit_list_index+=1
                     else:
+                        break
+                    next_bit_even = next_bit%2==0
+                    color_value_even = color%2==0
+                    if next_bit_even == color_value_even: 
+                        #if both the next bit and color value are even
+                        #add the number as is
                         new_pixel.append(color)
-                while(len(pixel) > len(new_pixel)):
-                    new_pixel.append(pixel[len(new_pixel)])
+                    elif next_bit_even:
+                        new_pixel.append(color-1)
+                    else:
+                        new_pixel.append(color+1)
+                if transparency:
+                    new_pixel.append(pixel[3])
                 new_im_data.append(tuple(new_pixel))
-                print(len(new_im_data))
+                #print(f'{pixel_num} : {pixels_length}')
+            #Add all the pixels that don't need to be changed to the list
+            last_pixel = len(new_im_data)
+            for i in range(last_pixel,len(pixels)):
+                new_im_data.append(pixels[i])
+                #print(f'{i}::{pixels_length}')
         #print(new_im_data)
         #print(test_output[0:32])
         #print(new_im_data[0:8])
@@ -131,7 +139,7 @@ def decode(image_path, output_path):
         print(file_data)
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
-        with open("Realoutput.jpg", "wb") as file:
+        with open(file_name, "wb") as file:
             print("Writing bytes to file:  ")
             file.write(file_data)
             
@@ -233,6 +241,6 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    #encode("test.jfif", "test.jpg", 1, "output.png")
+    encode("test/HighResDog.jpg", "test/test.txt", 1, "output.png")
     decode("output.png", "/output")
     
