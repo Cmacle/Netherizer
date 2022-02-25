@@ -37,7 +37,7 @@ def encode(image_path, file_path, bit_depth, output_path):
                 new_pixel = []
                 for num in range(3):
                     color = pixel[num]
-                    if(bit_list):
+                    if bit_list_index+1 < bit_list_len:
                         next_bit = bit_list[bit_list_index]
                         bit_list_index+=1
                     else:
@@ -139,9 +139,10 @@ def decode(image_path, output_path):
         print(file_data)
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
-        with open(file_name, "wb") as file:
+        with open(output_location, "wb") as file:
             print("Writing bytes to file:  ")
             file.write(file_data)
+        print("Done")
             
 
 def output_image(image_data, image, output_path):
@@ -155,6 +156,13 @@ def max_input_size(width, height, bit_depth, file_name_length = None):
     max_size = (width*height*3)/8
     if file_name_length:
         max_size -= file_name_length
+    return max_size
+
+def max_input_size_from_path(path, bit_depth):
+    image = Image.open(path)
+    width, height = image.size
+    max_size = (width*height*3*bit_depth)/8
+    max_size = max_size - len(os.path.basename(path))
     return max_size
 
 def byte_list_to_file(byte_list, output_path):
@@ -241,6 +249,6 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    encode("test/HighResDog.jpg", "test/test.txt", 1, "output.png")
-    decode("output.png", "/output")
+    encode("test/HighResCat.jpg", "test/200w.gif", 1, "output.png")
+    #decode("output.png", "/output")
     
