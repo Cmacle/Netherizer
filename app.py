@@ -112,7 +112,6 @@ class EncodePage(tk.Frame):
         self.bit_depth = StringVar()
         bit_depth_options = [
             "1",
-            "2"
         ]
         self.bit_depth.set("1")
         bit_depth_menu = OptionMenu(self, self.bit_depth, *bit_depth_options)
