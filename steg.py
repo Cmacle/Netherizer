@@ -91,6 +91,7 @@ def encode(image_path, file_path, bit_depth, output_path):
                         new_pixel.append(color-1)
                     else:
                         new_pixel.append(color+1)
+
                 if transparency:
                     new_pixel.append(pixel[3])
                 new_im_data.append(tuple(new_pixel))
@@ -102,6 +103,8 @@ def encode(image_path, file_path, bit_depth, output_path):
                 for num in range(3):
                     #check if out of bits
                     if out_of_bits:
+                        if len(new_pixel) == 2:
+                            new_pixel.append(pixel[2])
                         break
                     #get the color
                     color = pixel[num]
@@ -268,6 +271,14 @@ def decode(image_path, output_path):
 
 def output_image(image_data, image, output_path):
     new_image = Image.new(image.mode, image.size)
+    for x ,pixel in enumerate(image_data):
+        if len(pixel) == 2:
+            print(x,pixel)
+        if not isinstance(pixel, tuple):
+            print(x,pixel)
+        for color in pixel:
+            if not isinstance(color,int):
+                print(color)
     new_image.putdata(image_data)
     new_image.save(output_path, format="PNG")
 
