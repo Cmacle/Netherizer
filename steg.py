@@ -133,11 +133,9 @@ def encode(image_path, file_path, bit_depth, output_path):
             last_pixel = len(new_im_data)
             for i in range(last_pixel,len(pixels)):
                 new_im_data.append(pixels[i])
-                
+
         output_image(new_im_data, image, output_path)
         print("Done")
-
-
 
 def decode(image_path, output_path):
     """
@@ -197,7 +195,6 @@ def decode(image_path, output_path):
             else:
                 file_length.append("1")
         file_length = bit_list_to_byte_list(file_length)
-        print(file_length)
         file_length = int(file_length.decode('UTF-8'))
         print(f'File Length: {file_length} Bytes')
         #Get the file information
@@ -208,14 +205,66 @@ def decode(image_path, output_path):
             file_data.append(str(color%2))
             #print(f'{i} : {i/hold*100}%')
         file_data = bit_list_to_byte_list(file_data)
-        print(file_data)
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
         with open(output_location, "wb") as file:
             print("Writing bytes to file:  ")
             file.write(file_data)
         print("Done")
-            
+    else:
+        bit_list = []
+        #get the bit list for the entire image
+        for color in colors:
+            #get the color as a bitstring then turn it into a list
+            color_bit_list = format(color, "b")
+            color_bit_list = color_bit_list.rjust(8, "0") #Pad the string to 8 characters
+            color_bit_list = list(color_bit_list)
+            #Now read values equal to the bit_depth
+            for x in range(bit_depth):
+                bit_list.append(str(color_bit_list[(x+1)*-1]))
+        #Now we start parsing the data
+        bit_list_index = bit_depth #offset the index to account for the unused color in pixel 3 during encode
+        
+        file_name_length = [] #Make a list for the file_name_length
+        #get 3 bytes of data
+        for i in range(24):
+            file_name_length.append(bit_list[bit_list_index])
+            bit_list_index += 1
+        file_name_length = bit_list_to_byte_list(file_name_length)
+        file_name_length = int(file_name_length.decode('UTF-8'))
+        print(f'File Name Length: {file_name_length}')
+
+        #Get the file name from the data
+        file_name = []
+        #Get 8 bits for each character starting from the 16th
+        for i in range(file_name_length*8):
+            file_name.append(bit_list[bit_list_index])
+            bit_list_index += 1
+        file_name = bit_list_to_byte_list(file_name)
+        file_name = file_name.decode('UTF-8')
+        print(f'File Name: {file_name}')
+
+        #Get the file length
+        file_length = []
+        for i in range(88):
+            file_length.append(bit_list[bit_list_index])
+            bit_list_index += 1
+        file_length = bit_list_to_byte_list(file_length)
+        file_length = int(file_length.decode('UTF-8'))
+        print(f'File Length: {file_length} Bytes')
+
+        #Get the file information
+        file_data = []
+        for i in range(file_length*8):
+            file_data.append(bit_list[bit_list_index])
+            bit_list_index += 1
+        file_data = bit_list_to_byte_list(file_data)
+        #Write the data to a file
+        output_location = os.path.join(output_path, file_name)
+        with open(output_location, "wb") as file:
+            print("Writing bytes to file:  ")
+            file.write(file_data)
+        print("Done")
 
 def output_image(image_data, image, output_path):
     new_image = Image.new(image.mode, image.size)
@@ -321,6 +370,6 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    encode("test/HighResCat.jpg", "test/200w.gif", 2, "output.png")
-    #decode("output.png", "/output")
+    encode("test/HighResCat.jpg", "test/200w.gif", 8, "output.png")
+    decode("output.png", "")
     pass
