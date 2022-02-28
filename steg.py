@@ -1,3 +1,4 @@
+import math
 import os
 from PIL import Image
 
@@ -8,17 +9,24 @@ def encode(image_path, file_path, bit_depth, output_path):
     ascending order according to the bit_depth. With lower values
     having less impact on the image and having less data capacity.
     """
+    print("Processing Input File")
     file_byte_list = file_to_byte_list(file_path, bit_depth)
     #byte_list_to_file(file_byte_list, "")
+    print("Opening Image")
     image = Image.open(image_path)
+    #Get the pixel data from the image
     pixels = image.getdata()
     print(len(pixels))
     print(pixels[0])
     width, height = image.size
+    image_mode = image.mode
+    image_size = image.size
+    #Delete the image as it is no longer needed
+    del(image)
     if os.path.getsize(file_path) <= max_input_size(width, height, bit_depth, len(os.path.basename(file_path))):
         new_im_data = []
         bit_list = bytes_to_bit_list(file_byte_list)
-
+        print("Encoding file into image")
         if bit_depth == 1:
             index = 0
             bit_list_len = len(bit_list)
@@ -136,8 +144,8 @@ def encode(image_path, file_path, bit_depth, output_path):
             last_pixel = len(new_im_data)
             for i in range(last_pixel,len(pixels)):
                 new_im_data.append(pixels[i])
-
-        output_image(new_im_data, image, output_path)
+        print("Writing output file")
+        output_image(new_im_data, image_mode, image_size, output_path)
         print("Done")
 
 def decode(image_path, output_path):
@@ -147,11 +155,14 @@ def decode(image_path, output_path):
     """
     image = Image.open(image_path)
     pixels = image.getdata()
+    #Delete the image as it is no longer needed
+    del(image)
     colors = []
     #create a list for the color values from every pixel
     for pixel in pixels:
         for i in range(3):
             colors.append(pixel[i])
+    del(pixels)
     bit_depth = []
     print("DECODING")
     #Get the Bit Depth from the first 8 color values
@@ -216,22 +227,22 @@ def decode(image_path, output_path):
         print("Done")
     else:
         bit_list = []
-        #get the bit list for the entire image
-        for color in colors:
+        #get the bit list for the first 8112 bits to ensure we have all file information
+        
+        for i in range(math.ceil(8112/bit_depth)):
             #get the color as a bitstring then turn it into a list
-            color_bit_list = format(color, "b")
-            color_bit_list = color_bit_list.rjust(8, "0") #Pad the string to 8 characters
-            color_bit_list = list(color_bit_list)
+            color_bit_list = color_to_bit_list(colors[i])
             #Now read values equal to the bit_depth
             for x in range(bit_depth):
-                bit_list.append(str(color_bit_list[(x+1)*-1]))
+                bit_list.append(color_bit_list[(x+1)*-1])
+
         #Now we start parsing the data
         bit_list_index = bit_depth #offset the index to account for the unused color in pixel 3 during encode
         
         file_name_length = [] #Make a list for the file_name_length
         #get 3 bytes of data
         for i in range(24):
-            file_name_length.append(bit_list[bit_list_index])
+            file_name_length.append(str(bit_list[bit_list_index]))
             bit_list_index += 1
         file_name_length = bit_list_to_byte_list(file_name_length)
         file_name_length = int(file_name_length.decode('UTF-8'))
@@ -241,7 +252,7 @@ def decode(image_path, output_path):
         file_name = []
         #Get 8 bits for each character starting from the 16th
         for i in range(file_name_length*8):
-            file_name.append(bit_list[bit_list_index])
+            file_name.append(str(bit_list[bit_list_index]))
             bit_list_index += 1
         file_name = bit_list_to_byte_list(file_name)
         file_name = file_name.decode('UTF-8')
@@ -250,17 +261,30 @@ def decode(image_path, output_path):
         #Get the file length
         file_length = []
         for i in range(88):
-            file_length.append(bit_list[bit_list_index])
+            file_length.append(str(bit_list[bit_list_index]))
             bit_list_index += 1
         file_length = bit_list_to_byte_list(file_length)
         file_length = int(file_length.decode('UTF-8'))
         print(f'File Length: {file_length} Bytes')
 
+        #Get data until we have enough to satisfy the file length 
+        for i in range(math.ceil((8112+file_length*8)/bit_depth)):
+            #get the color as a bitstring then turn it into a list
+            color_bit_list = color_to_bit_list(colors[i])
+            #Now read values equal to the bit_depth
+            for x in range(bit_depth):
+                bit_list.append(color_bit_list[(x+1)*-1])
+        #Delete Colors
+        del(colors)
         #Get the file information
         file_data = []
         for i in range(file_length*8):
-            file_data.append(bit_list[bit_list_index])
+            file_data.append(str(bit_list[bit_list_index]))
             bit_list_index += 1
+        #Delete bit_list
+        del(bit_list)
+        #Turn the file_data into a list of bytes
+        print("Changing bit_list ot byte_list")
         file_data = bit_list_to_byte_list(file_data)
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
@@ -269,18 +293,17 @@ def decode(image_path, output_path):
             file.write(file_data)
         print("Done")
 
-def output_image(image_data, image, output_path):
-    new_image = Image.new(image.mode, image.size)
-    for x ,pixel in enumerate(image_data):
-        if len(pixel) == 2:
-            print(x,pixel)
-        if not isinstance(pixel, tuple):
-            print(x,pixel)
-        for color in pixel:
-            if not isinstance(color,int):
-                print(color)
+def output_image(image_data, image_mode, image_size, output_path):
+    new_image = Image.new(image_mode, image_size)
     new_image.putdata(image_data)
     new_image.save(output_path, format="PNG")
+
+def color_to_bit_list(color):
+    #Turns an int into an 8 
+    color_bit_list = format(color, "b")
+    color_bit_list = color_bit_list.rjust(8, "0") #Pad the string to 8 characters
+    color_bit_list = list(color_bit_list)
+    return color_bit_list
 
 def max_input_size(width, height, bit_depth, file_name_length = None):
     #This will calculate the largest possible file that can be encoded
@@ -335,12 +358,13 @@ def int_to_byte(x):
     #Turns an int into a string then a byte
     return str(x).encode()
 
-def bytes_to_bit_list(byte_list):
+def bytes_to_bit_list(byte_list, index = None, bytes_to_translate = None):
     bit_list = []
     for byte in byte_list:
         hold = []
         for i in range(8):
-                hold.insert(0, (byte[0] >> i) & 1)
+                next_bit = (byte[0] >> i) & 1
+                hold.insert(0, bool(next_bit))
         for bit in hold:
             bit_list.append(bit)
     return bit_list
