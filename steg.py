@@ -15,6 +15,7 @@ def encode(image_path, file_path, bit_depth, output_path):
     print("Opening Image")
     image = Image.open(image_path)
     #Get the pixel data from the image
+    print("Extracting Pixel Data")
     pixels = image.getdata()
     print(len(pixels))
     print(pixels[0])
@@ -23,6 +24,7 @@ def encode(image_path, file_path, bit_depth, output_path):
     image_size = image.size
     #Delete the image as it is no longer needed
     del(image)
+
     if os.path.getsize(file_path) <= max_input_size(width, height, bit_depth, len(os.path.basename(file_path))):
         new_im_data = []
         bit_list = bytes_to_bit_list(file_byte_list)
