@@ -1,3 +1,4 @@
+from calendar import c
 import math
 import os
 from PIL import Image
@@ -28,128 +29,134 @@ def encode(image_path, file_path, bit_depth, output_path):
     if os.path.getsize(file_path) <= max_input_size(width, height, bit_depth, len(os.path.basename(file_path))):
         new_im_data = []
         bit_list = bytes_to_bit_list(file_byte_list)
+        bit_list_len = len(bit_list)
+        color_stop = 0
+        del(file_byte_list)
+        #Check if the image is a png and if so create a list for transparency values
+        transparency = False
+        if len(pixels[0]) > 3:
+                transparency = True
+                transparency_values = []
+        colors = []
+        #Turn the pixels into a list of color values and a list for transparency values if a png
+        print("Processing Pixel Data")
+        if transparency:
+            for x, pixel in enumerate(pixels):
+                if x*bit_depth > bit_list_len:
+                    color_stop = x
+                    break
+                for i in range(3):
+                    colors.append(pixel[i])
+                transparency_values.append(pixel[3])
+        else:
+            for x, pixel in enumerate(pixels):
+                if x*bit_depth > bit_list_len:
+                    color_stop = x
+                    break
+                for color in pixel:
+                    colors.append(color)
         print("Encoding file into image")
         if bit_depth == 1:
-            index = 0
-            bit_list_len = len(bit_list)
             bit_list_index = 0
-            transparency = False
-            pixel_index = 0
-            if len(pixels[0]) > 3:
-                transparency = True
+            color_index = 0
+            #Edit Pixel Data until all file bits have been written
             while bit_list_index+1 < bit_list_len:
-                pixel = pixels[pixel_index]
-                pixel_index+=1
-                new_pixel = []
-                for num in range(3):
-                    color = pixel[num]
-                    #check if there are any bits left to write
+                #check if there are any bits left to write
+                next_bit = bit_list[bit_list_index]
+                bit_list_index+=1                    
+                color_value_even = colors[color_index]%2==0
+
+                if next_bit: 
+                    #if the next bit and last value of the color are different
+                    #edit the color
+                    if color_value_even:
+                        colors[color_index] = colors[color_index] + 1
+                else:
+                    if not color_value_even:
+                        print(color_index)
+                        colors[color_index] = colors[color_index] - 1
+                color_index+=1      
+        else:
+            bit_list_index = 0
+            color_index = 0
+            out_of_bits = False
+            while bit_list_index+1 < 9:
+                #check if there are any bits left to write
+                next_bit = bit_list[bit_list_index]
+                bit_list_index+=1                    
+                color_value_even = colors[color_index]%2==0
+
+                if next_bit: 
+                    #if the next bit and last value of the color are different
+                    #edit the color
+                    if color_value_even:
+                        colors[color_index] = colors[color_index] + 1
+                else:
+                    if not color_value_even:
+                        print(color_index)
+                        colors[color_index] = colors[color_index] - 1
+                color_index+=1      
+
+            #Now handle the rest of the pixels and data with the new method
+            while bit_list_index+1 < bit_list_len:
+                if out_of_bits:
+                    break
+                #Get the color as a string in binary
+                color_bit_list = format(colors[color_index], "b")
+                color_bit_list = color_bit_list.rjust(8,"0") #Pad string to 8 bits
+                color_bit_list = list(color_bit_list) #Make it a list
+                #rewrite bits in values equal to bitdepth starting with LSB
+                for x in range(bit_depth):
+                    #check for remaining bits
                     if bit_list_index+1 < bit_list_len:
                         next_bit = bit_list[bit_list_index]
                         bit_list_index+=1
                     else:
+                        out_of_bits = True
                         break
-                    next_bit_even = next_bit%2==0
-                    color_value_even = color%2==0
-                    if next_bit_even == color_value_even: 
-                        #if both the next bit and color value are even
-                        #add the number as is
-                        new_pixel.append(color)
-                    elif next_bit_even:
-                        new_pixel.append(color-1)
-                    else:
-                        new_pixel.append(color+1)
-                if transparency:
-                    new_pixel.append(pixel[3])
+                    color_bit_list[(x+1)*-1] = int(next_bit)
+                #Make a list of th evalues as strings
+                bit_list_strings = [str(int) for int in color_bit_list]
+                #Join the new bit_list_strings can cast to int
+                colors[color_index] = "".join(bit_list_strings)
+                colors[color_index] = int(colors[color_index] , 2)
+                color_index+=1
+
+        #Reconstruct the pixels from the colors
+        if transparency:
+            color_index = 0
+            for num in range(len(colors)//3):
+                new_pixel = []
+                #Append 3 Color Values
+                for i in range(3):
+                    new_pixel.append(colors[color_index])
+                    color_index+=1
+                #Append the transparency Value
+                new_pixel.append(transparency_values[num])
+                #Append to new_im_data as a tuple
                 new_im_data.append(tuple(new_pixel))
-                
-            #Add all the pixels that don't need to be changed to the list
-            last_pixel = len(new_im_data)
-            for i in range(last_pixel,len(pixels)):
-                new_im_data.append(pixels[i])
-                #print(f'{i}::{pixels_length}')
+        #Same but without the transparency append, split up for branching performance        
         else:
-            index = 0
-            bit_list_len = len(bit_list)
-            bit_list_index = 0
-            transparency = False
-            #Start with the 4th pixel, the first 3 are used for bitdepth
-            pixel_index = 3
-            out_of_bits = False
-
-            if len(pixels[0]) > 3:
-                transparency = True
-            #Append the first 8 bits the same way as with a bit depth of 1
-            for x in range(3):
-                pixel = pixels[x]
+            color_index = 0
+            print(len(colors))
+            for num in range(len(colors)//3):
                 new_pixel = []
-                for num in range(3):
-                    color = pixel[num]
-                    if bit_list_index < 8:
-                        next_bit = bit_list[bit_list_index]
-                        bit_list_index+=1
-                    else:
-                        new_pixel.append(color)
-                        break
-                    next_bit_even = next_bit%2==0
-                    color_value_even = color%2==0
-                    if next_bit_even == color_value_even: 
-                        #if both the next bit and color value are even
-                        #add the number as is
-                        new_pixel.append(color)
-                    elif next_bit_even:
-                        new_pixel.append(color-1)
-                    else:
-                        new_pixel.append(color+1)
-
-                if transparency:
-                    new_pixel.append(pixel[3])
+                #Append 3 Color Values
+                for i in range(3):
+                    new_pixel.append(colors[color_index])
+                    color_index+=1
                 new_im_data.append(tuple(new_pixel))
-            #Now handle the rest of the pixels and data with the new method
-            while bit_list_index+1 < bit_list_len:
-                pixel = pixels[pixel_index]
-                pixel_index+=1
-                new_pixel = []
-                for num in range(3):
-                    #check if out of bits
-                    if out_of_bits:
-                        if len(new_pixel) == 2:
-                            new_pixel.append(pixel[2])
-                        break
-                    #get the color
-                    color = pixel[num]
-                    #get the color as a bitstring then turn it into a list
-                    color_bit_list = format(color, "b")
-                    color_bit_list = color_bit_list.rjust(8, "0") #Pad the string to 8 characters
-                    color_bit_list = list(color_bit_list)
-                    #rewrite bits in values equal to bitdepth starting with LSB
-                    for x in range(bit_depth):
-                        #check for remaining bits
-                        if bit_list_index+1 < bit_list_len:
-                            next_bit = bit_list[bit_list_index]
-                            bit_list_index+=1
-                        else:
-                            out_of_bits = True
-                            break
-                        color_bit_list[(x+1)*-1] = next_bit
-                    #Make a list of the values as strings
-                    bit_list_strings = [str(int) for int in color_bit_list]
-                    #Join the new bit_list into a string then cast to an int
-                    color = "".join(bit_list_strings)
-                    color = int(color , 2)
-                    new_pixel.append(color)
-                if transparency:
-                    new_pixel.append(pixel[3])
-                new_im_data.append(tuple(new_pixel))        
-                        
-            #Add all the pixels that don't need to be changed to the list
-            last_pixel = len(new_im_data)
-            for i in range(last_pixel,len(pixels)):
-                new_im_data.append(pixels[i])
+        del(colors)
+        #Add the remaining unaltered pixels
+        print("Appending unaltered pixels")
+        for i in range(color_stop, len(pixels)):
+            new_im_data.append(pixels[i])
+        del(pixels)
         print("Writing output file")
         output_image(new_im_data, image_mode, image_size, output_path)
         print("Done")
-
+    else:
+        print("File too large")
 def decode(image_path, output_path):
     """
     This will take an image that has been encoded previously and
@@ -175,7 +182,9 @@ def decode(image_path, output_path):
                 bit_depth.append("0")
             else:
                 bit_depth.append("1")
+    print(bit_depth)
     bit_depth = bit_list_to_byte_list(bit_depth)
+    print(bit_depth)
     bit_depth = int(bit_depth.decode('UTF-8'))
     print(f'Bit Depth: {bit_depth}')
     
@@ -239,7 +248,7 @@ def decode(image_path, output_path):
                 bit_list.append(color_bit_list[(x+1)*-1])
 
         #Now we start parsing the data
-        bit_list_index = bit_depth #offset the index to account for the unused color in pixel 3 during encode
+        bit_list_index = 0 #offset the index to account for the unused color in pixel 3 during encode
         
         file_name_length = [] #Make a list for the file_name_length
         #get 3 bytes of data
@@ -286,7 +295,7 @@ def decode(image_path, output_path):
         #Delete bit_list
         del(bit_list)
         #Turn the file_data into a list of bytes
-        print("Changing bit_list ot byte_list")
+        print("Changing bit_list to byte_list")
         file_data = bit_list_to_byte_list(file_data)
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
@@ -407,6 +416,6 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    encode("test/HighResCat.jpg", "test/200w.gif", 8, "output.png")
+    encode("test/test2.jpg", "test/test.txt", 5, "output.png")
     decode("output.png", "")
     pass
