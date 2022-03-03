@@ -2,7 +2,8 @@ from calendar import c
 import math
 import os
 from PIL import Image
-
+#Make a variable for updating the app UI 
+state = "Ready"
 def encode(image_path, file_path, bit_depth, output_path):
     """
     This will take the input image and file to be hidden within
@@ -10,6 +11,8 @@ def encode(image_path, file_path, bit_depth, output_path):
     ascending order according to the bit_depth. With lower values
     having less impact on the image and having less data capacity.
     """
+    CHUNK_SIZE = 10000
+
     print("Processing Input File")
     file_byte_list = file_to_byte_list(file_path, bit_depth)
     #byte_list_to_file(file_byte_list, "")
@@ -28,10 +31,10 @@ def encode(image_path, file_path, bit_depth, output_path):
 
     if os.path.getsize(file_path) <= max_input_size(width, height, bit_depth, len(os.path.basename(file_path))):
         new_im_data = []
-        bit_list = bytes_to_bit_list(file_byte_list)
-        bit_list_len = len(bit_list)
+        #bit_list = bytes_to_bit_list(file_byte_list)
+        #bit_list_len = len(bit_list)
+        byte_list_len = len(file_byte_list)
         color_stop = 0
-        del(file_byte_list)
         #Check if the image is a png and if so create a list for transparency values
         transparency = False
         if len(pixels[0]) > 3:
@@ -41,42 +44,49 @@ def encode(image_path, file_path, bit_depth, output_path):
         #Turn the pixels into a list of color values and a list for transparency values if a png
         print("Processing Pixel Data")
         if transparency:
+            print("Byte List Len: ",byte_list_len*8)
             for x, pixel in enumerate(pixels):
-                if x*bit_depth > bit_list_len:
+                if x*bit_depth > byte_list_len * 8 / 3:
                     color_stop = x
                     break
                 for i in range(3):
                     colors.append(pixel[i])
                 transparency_values.append(pixel[3])
         else:
+            print("Byte List Len: ",byte_list_len*8)
+            print(os.path.getsize(file_path))
             for x, pixel in enumerate(pixels):
-                if x*bit_depth > bit_list_len:
+                if x*bit_depth > byte_list_len * 8 / 3:
                     color_stop = x
                     break
                 for color in pixel:
                     colors.append(color)
+        #Encode the file in 1KB chunks to reduce memory usage
+        num_chunks = math.ceil(len(file_byte_list)/CHUNK_SIZE)
+        last_chunk_length = len(file_byte_list)%CHUNK_SIZE
         print("Encoding file into image")
         if bit_depth == 1:
-            bit_list_index = 0
+            #For every chunk
             color_index = 0
-            #Edit Pixel Data until all file bits have been written
-            while bit_list_index+1 < bit_list_len:
-                #check if there are any bits left to write
-                next_bit = bit_list[bit_list_index]
-                bit_list_index+=1                    
-                color_value_even = colors[color_index]%2==0
+            for i in range(num_chunks):
+                print(f'Chunk: {i+1} of {num_chunks}')
+                bit_list = bytes_to_bit_list(file_byte_list, start_index=i*CHUNK_SIZE, end_index=i*CHUNK_SIZE+CHUNK_SIZE)
+                #Edit Pixel Data until all file bits have been written
+                for bit in bit_list:                  
+                    color_value_even = colors[color_index]%2==0
 
-                if next_bit: 
-                    #if the next bit and last value of the color are different
-                    #edit the color
-                    if color_value_even:
+                    if bit and color_value_even: 
+                        #if the next bit and last value of the color are different
+                        #edit the color
                         colors[color_index] = colors[color_index] + 1
-                else:
-                    if not color_value_even:
-                        print(color_index)
+                   
+                    elif not bit and not color_value_even:
                         colors[color_index] = colors[color_index] - 1
-                color_index+=1      
+                    color_index+=1
+
         else:
+            bit_list = bytes_to_bit_list(file_byte_list)
+            bit_list_len = len(bit_list)
             bit_list_index = 0
             color_index = 0
             out_of_bits = False
@@ -123,6 +133,7 @@ def encode(image_path, file_path, bit_depth, output_path):
                 color_index+=1
 
         #Reconstruct the pixels from the colors
+        print("Reconstructing Pixels")
         if transparency:
             color_index = 0
             for num in range(len(colors)//3):
@@ -146,13 +157,16 @@ def encode(image_path, file_path, bit_depth, output_path):
                     new_pixel.append(colors[color_index])
                     color_index+=1
                 new_im_data.append(tuple(new_pixel))
+
         del(colors)
         #Add the remaining unaltered pixels
         print("Appending unaltered pixels")
+        print("Color Stop ", color_stop ,":",len(pixels))
         for i in range(color_stop, len(pixels)):
             new_im_data.append(pixels[i])
         del(pixels)
         print("Writing output file")
+        print(len(new_im_data))
         output_image(new_im_data, image_mode, image_size, output_path)
         print("Done")
     else:
@@ -190,8 +204,10 @@ def decode(image_path, output_path):
     
     if bit_depth == 1:
         file_name_length = []#Make a list for the file name length
+        colors_offset = 0 #Keep track of what color we are on
         for i in range(24):
-            color = colors.pop(0)
+            color = colors[colors_offset]
+            colors_offset+=1
             if color%2==0:
                 file_name_length.append("0")
             else:
@@ -203,7 +219,8 @@ def decode(image_path, output_path):
         file_name = []
         #Get 8 bits for each character starting from the 16th
         for i in range(file_name_length*8):
-            color = colors.pop(0)
+            color = colors[colors_offset]
+            colors_offset+=1
             if color%2==0:
                 file_name.append("0")
             else:
@@ -214,7 +231,8 @@ def decode(image_path, output_path):
         #Get the file length
         file_length = []
         for i in range(88):
-            color = colors.pop(0)
+            color = colors[colors_offset]
+            colors_offset+=1
             if color%2==0:
                 file_length.append("0")
             else:
@@ -226,7 +244,7 @@ def decode(image_path, output_path):
         file_data = []
         hold = file_length*8
         for i in range(file_length*8):
-            color = colors[i]
+            color = colors[i+colors_offset]
             file_data.append(str(color%2))
             #print(f'{i} : {i/hold*100}%')
         file_data = bit_list_to_byte_list(file_data)
@@ -369,15 +387,33 @@ def int_to_byte(x):
     #Turns an int into a string then a byte
     return str(x).encode()
 
-def bytes_to_bit_list(byte_list, index = None, bytes_to_translate = None):
+def bytes_to_bit_list(byte_list, start_index = None, end_index = None):
     bit_list = []
-    for byte in byte_list:
-        hold = []
-        for i in range(8):
-                next_bit = (byte[0] >> i) & 1
-                hold.insert(0, bool(next_bit))
-        for bit in hold:
-            bit_list.append(bit)
+    if end_index:
+        #Make sure the start_index is in range if not return an empty list
+        if start_index >= len(byte_list):
+            return bit_list
+        #Make sure the end_index is in range if not set it to the end of the list
+        if end_index > len(byte_list):
+            end_index = len(byte_list)
+        #Now we will iterate over the selected elements and return them
+        for i in range(start_index,end_index):
+
+            byte = byte_list[i]
+            hold = []
+            for i in range(8):
+                    next_bit = (byte[0] >> i) & 1
+                    hold.insert(0, bool(next_bit))
+            for bit in hold:
+                bit_list.append(bit)
+    else:
+        for byte in byte_list:
+            hold = []
+            for i in range(8):
+                    next_bit = (byte[0] >> i) & 1
+                    hold.insert(0, bool(next_bit))
+            for bit in hold:
+                bit_list.append(bit)
     return bit_list
 
 def file_to_byte_list(file_path, bit_depth):
@@ -416,6 +452,6 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    encode("test/test2.jpg", "test/test.txt", 5, "output.png")
+    encode("test/test2.jpg", "test/test.txt", 1, "output.png")
     decode("output.png", "")
     pass

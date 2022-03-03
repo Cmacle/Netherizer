@@ -1,5 +1,6 @@
 import os
 import tkinter as tk
+from threading import Thread
 from tkinter import LEFT, SOLID, SW, Label, OptionMenu, StringVar, Toplevel, font as tkfont
 from tkinter import filedialog
 from turtle import color, title
@@ -71,6 +72,7 @@ class EncodePage(tk.Frame):
     image_name = None
     bit_depth = "1"
     output_path = None
+    state = steg.state
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
@@ -167,6 +169,9 @@ class EncodePage(tk.Frame):
                            command=lambda: self.encode())
         encode_button.grid(column=4, row=2, padx=20)
 
+        #self.bit_depth.trace("w", self.update_max_input_size)
+
+
     def choose_encode_image(self):
         path = ""
         root = tk.Tk()
@@ -218,7 +223,12 @@ class EncodePage(tk.Frame):
     def encode(self):
         print(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path)
         if(self.image_path and self.file_path and self.bit_depth.get() and self.output_path):
-            steg.encode(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get())
+            if(steg.state == "Ready"):
+                #Create a new thread for the process
+                thread = Thread(target=steg.encode, args = (self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get()))
+                thread.start()
+                #thread.join()
+                #steg.encode(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get())
 
 
 class DecodePage(tk.Frame):
