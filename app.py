@@ -1,10 +1,15 @@
+import logging
 import os
+import queue
 import tkinter as tk
 from threading import Thread
 from tkinter import LEFT, SOLID, SW, Label, OptionMenu, StringVar, Toplevel, font as tkfont
 from tkinter import filedialog
+from tkinter.scrolledtext import ScrolledText
 from turtle import color, title
 import steg
+
+LOG_LEVEL = 20
 
 class App(tk.Tk):
 
@@ -72,7 +77,7 @@ class EncodePage(tk.Frame):
     image_name = None
     bit_depth = "1"
     output_path = None
-    state = steg.state
+    state = ""
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
@@ -169,8 +174,43 @@ class EncodePage(tk.Frame):
                            command=lambda: self.encode())
         encode_button.grid(column=4, row=2, padx=20)
 
-        #self.bit_depth.trace("w", self.update_max_input_size)
+        #Log
+        steg.logger = logging.getLogger(__name__)
+        logging.basicConfig(level = LOG_LEVEL)
 
+        self.scrolled_text = ScrolledText(self, state='disabled', height=12)
+        self.scrolled_text.grid(column=0, row=5, columnspan=5, sticky=("SW", "SE"))
+        self.scrolled_text.configure(font='TkFixedFont')
+        self.scrolled_text.tag_config('INFO', foreground='black')
+        self.scrolled_text.tag_config('DEBUG', foreground='gray')
+        self.scrolled_text.tag_config('WARNING', foreground='orange')
+        self.scrolled_text.tag_config('ERROR', foreground='red')
+        self.scrolled_text.tag_config('CRITICAL', foreground='red', underline=1)
+        # Create a logging handler using a queue
+        self.log_queue = queue.Queue()
+        self.queue_handler = QueueHandler(self.log_queue)
+        steg.logger.addHandler(self.queue_handler)
+        # Start polling messages from the queue
+        self.controller.after(100, self.poll_log_queue)
+
+    def display(self, record):
+        msg = self.queue_handler.format(record)
+        self.scrolled_text.configure(state='normal')
+        self.scrolled_text.insert(tk.END, msg + '\n', record.levelname)
+        self.scrolled_text.configure(state='disabled')
+        # Autoscroll to the bottom
+        self.scrolled_text.yview(tk.END)
+
+    def poll_log_queue(self):
+        # Check every 100ms if there is a new message in the queue to display
+        while True:
+            try:
+                record = self.log_queue.get(block=False)
+            except queue.Empty:
+                break
+            else:
+                self.display(record)
+        self.controller.after(100, self.poll_log_queue)
 
     def choose_encode_image(self):
         path = ""
@@ -229,7 +269,8 @@ class EncodePage(tk.Frame):
                 thread.start()
                 #thread.join()
                 #steg.encode(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get())
-
+            else:
+                logging.log(logging.WARN, "PROCESS ONGOING")
 
 class DecodePage(tk.Frame):
     image_path = None
@@ -337,13 +378,18 @@ def CreateToolTip(widget, text):
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
             
-def show_bit_depth():
-    #label.config( text = clicked.get() )
-    pass
+class QueueHandler(logging.Handler):
+    """Class to send logging records to a queue
 
-def choose_file():
-    path = ""
-    return path
+    It can be used from different threads
+    """
+
+    def __init__(self, log_queue):
+        super().__init__()
+        self.log_queue = log_queue
+
+    def emit(self, record):
+        self.log_queue.put(record)
 
 
 if __name__ == "__main__":

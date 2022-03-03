@@ -1,9 +1,13 @@
 from calendar import c
+import logging
 import math
 import os
+from tkinter import StringVar
 from PIL import Image
+
 #Make a variable for updating the app UI 
 state = "Ready"
+logger = ""
 def encode(image_path, file_path, bit_depth, output_path):
     """
     This will take the input image and file to be hidden within
@@ -12,14 +16,21 @@ def encode(image_path, file_path, bit_depth, output_path):
     having less impact on the image and having less data capacity.
     """
     CHUNK_SIZE = 10000
+    
+    State = "Running"
+    logger.log(logging.INFO, "Encoding")
+    logger.log(logging.INFO, "Processing Input File")
 
-    print("Processing Input File")
     file_byte_list = file_to_byte_list(file_path, bit_depth)
     #byte_list_to_file(file_byte_list, "")
-    print("Opening Image")
+
+    logger.log(logging.INFO, "Opening Image")
+
     image = Image.open(image_path)
     #Get the pixel data from the image
-    print("Extracting Pixel Data")
+
+    logger.log(logging.INFO, "Extracting Pixel Data")
+
     pixels = image.getdata()
     print(len(pixels))
     print(pixels[0])
@@ -42,7 +53,8 @@ def encode(image_path, file_path, bit_depth, output_path):
                 transparency_values = []
         colors = []
         #Turn the pixels into a list of color values and a list for transparency values if a png
-        print("Processing Pixel Data")
+
+        logger.log(logging.INFO, "Processing Pixel Data")
         if transparency:
             print("Byte List Len: ",byte_list_len*8)
             for x, pixel in enumerate(pixels):
@@ -64,12 +76,13 @@ def encode(image_path, file_path, bit_depth, output_path):
         #Encode the file in 1KB chunks to reduce memory usage
         num_chunks = math.ceil(len(file_byte_list)/CHUNK_SIZE)
         last_chunk_length = len(file_byte_list)%CHUNK_SIZE
-        print("Encoding file into image")
+
         if bit_depth == 1:
             #For every chunk
             color_index = 0
             for i in range(num_chunks):
                 print(f'Chunk: {i+1} of {num_chunks}')
+                logger.log(logging.INFO, f'Chunk: {i+1} of {num_chunks}')
                 bit_list = bytes_to_bit_list(file_byte_list, start_index=i*CHUNK_SIZE, end_index=i*CHUNK_SIZE+CHUNK_SIZE)
                 #Edit Pixel Data until all file bits have been written
                 for bit in bit_list:                  
@@ -133,7 +146,7 @@ def encode(image_path, file_path, bit_depth, output_path):
                 color_index+=1
 
         #Reconstruct the pixels from the colors
-        print("Reconstructing Pixels")
+        logger.log(logging.INFO, "Reconstructing Pixels")
         if transparency:
             color_index = 0
             for num in range(len(colors)//3):
@@ -161,16 +174,20 @@ def encode(image_path, file_path, bit_depth, output_path):
         del(colors)
         #Add the remaining unaltered pixels
         print("Appending unaltered pixels")
-        print("Color Stop ", color_stop ,":",len(pixels))
+        logger.log(logging.INFO, "Appending unaltered pixels")
         for i in range(color_stop, len(pixels)):
             new_im_data.append(pixels[i])
         del(pixels)
-        print("Writing output file")
+
+        logger.log(logging.INFO, "Writing Output File")
         print(len(new_im_data))
         output_image(new_im_data, image_mode, image_size, output_path)
-        print("Done")
+
+        logger.log(logging.INFO, "Done")
     else:
         print("File too large")
+        logger.log(logging.ERROR, "INPUT FILE TOO LARGE")
+    state = "Ready"
 def decode(image_path, output_path):
     """
     This will take an image that has been encoded previously and
@@ -326,6 +343,7 @@ def output_image(image_data, image_mode, image_size, output_path):
     new_image = Image.new(image_mode, image_size)
     new_image.putdata(image_data)
     new_image.save(output_path, format="PNG")
+
 
 def color_to_bit_list(color):
     #Turns an int into an 8 
