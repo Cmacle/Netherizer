@@ -261,16 +261,18 @@ class EncodePage(tk.Frame):
             self.max_input_size_string.set(max_input_size_string)
     
     def encode(self):
-        print(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path)
+        #print(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path)
         if(self.image_path and self.file_path and self.bit_depth.get() and self.output_path):
             if(steg.state == "Ready"):
                 #Create a new thread for the process
-                thread = Thread(target=steg.encode, args = (self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get()))
+                thread = Thread(target=steg.encode, args = (self.image_path, self.file_path, 
+                                                            int(self.bit_depth.get()), self.output_path.get()))
+                thread.daemon = True
                 thread.start()
                 #thread.join()
                 #steg.encode(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get())
             else:
-                logging.log(logging.WARN, "PROCESS ONGOING")
+                steg.logger.log(logging.WARN, "PROCESS ONGOING")
 
 class DecodePage(tk.Frame):
     image_path = None
@@ -316,6 +318,43 @@ class DecodePage(tk.Frame):
                                 command=lambda: self.decode())
         decode_button.grid(column=2, row=2)                       
 
+        steg.logger = logging.getLogger(__name__)
+        logging.basicConfig(level = LOG_LEVEL)
+
+        self.scrolled_text = ScrolledText(self, state='disabled', height=12)
+        self.scrolled_text.grid(column=0, row=5, columnspan=5, sticky=("SW", "SE"))
+        self.scrolled_text.configure(font='TkFixedFont')
+        self.scrolled_text.tag_config('INFO', foreground='black')
+        self.scrolled_text.tag_config('DEBUG', foreground='gray')
+        self.scrolled_text.tag_config('WARNING', foreground='orange')
+        self.scrolled_text.tag_config('ERROR', foreground='red')
+        self.scrolled_text.tag_config('CRITICAL', foreground='red', underline=1)
+        # Create a logging handler using a queue
+        self.log_queue = queue.Queue()
+        self.queue_handler = QueueHandler(self.log_queue)
+        steg.logger.addHandler(self.queue_handler)
+        # Start polling messages from the queue
+        self.controller.after(100, self.poll_log_queue)
+
+    def display(self, record):
+        msg = self.queue_handler.format(record)
+        self.scrolled_text.configure(state='normal')
+        self.scrolled_text.insert(tk.END, msg + '\n', record.levelname)
+        self.scrolled_text.configure(state='disabled')
+        # Autoscroll to the bottom
+        self.scrolled_text.yview(tk.END)
+
+    def poll_log_queue(self):
+        # Check every 100ms if there is a new message in the queue to display
+        while True:
+            try:
+                record = self.log_queue.get(block=False)
+            except queue.Empty:
+                break
+            else:
+                self.display(record)
+        self.controller.after(100, self.poll_log_queue)
+
     def choose_decode_image(self):
         path = ""
         root = tk.Tk()
@@ -337,7 +376,16 @@ class DecodePage(tk.Frame):
     
     def decode(self):
         if self.image_path and self.output_path:
-            steg.decode(self.image_path, self.output_path)
+            if(steg.state == "Ready"):
+                #Create a new thread for the process
+                thread = Thread(target=steg.decode, args = (self.image_path, self.output_path))
+                thread.daemon = True
+                thread.start()
+                #thread.join()
+                #steg.encode(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get())
+            else:
+                steg.logger.log(logging.WARN, "PROCESS ONGOING")
+
 
 class ToolTip(object):
 

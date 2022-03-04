@@ -5,7 +5,9 @@ import os
 from tkinter import StringVar
 from PIL import Image
 
+
 #Make a variable for updating the app UI 
+
 state = "Ready"
 logger = ""
 def encode(image_path, file_path, bit_depth, output_path):
@@ -16,8 +18,10 @@ def encode(image_path, file_path, bit_depth, output_path):
     having less impact on the image and having less data capacity.
     """
     CHUNK_SIZE = 10000
-    
-    State = "Running"
+
+    global state
+    state = "ENCODING"
+
     logger.log(logging.INFO, "Encoding")
     logger.log(logging.INFO, "Processing Input File")
 
@@ -188,15 +192,23 @@ def encode(image_path, file_path, bit_depth, output_path):
         print("File too large")
         logger.log(logging.ERROR, "INPUT FILE TOO LARGE")
     state = "Ready"
+
 def decode(image_path, output_path):
     """
     This will take an image that has been encoded previously and
     output the file that was encoded into the image to the output_path.
     """
+    global state
+    state = "DECODING"
+
+    logger.log(logging.INFO, "DECODING")
+    logger.log(logging.INFO, f'Opening {image_path}')
     image = Image.open(image_path)
+    logger.log(logging.INFO, "Extracting Pixel Data")
     pixels = image.getdata()
     #Delete the image as it is no longer needed
     del(image)
+    logger.log(logging.INFO, "Processing Pixel Data")
     colors = []
     #create a list for the color values from every pixel
     for pixel in pixels:
@@ -204,7 +216,7 @@ def decode(image_path, output_path):
             colors.append(pixel[i])
     del(pixels)
     bit_depth = []
-    print("DECODING")
+
     #Get the Bit Depth from the first 8 color values
     for i in range(8):
         color = colors.pop(0)
@@ -213,11 +225,9 @@ def decode(image_path, output_path):
                 bit_depth.append("0")
             else:
                 bit_depth.append("1")
-    print(bit_depth)
     bit_depth = bit_list_to_byte_list(bit_depth)
-    print(bit_depth)
     bit_depth = int(bit_depth.decode('UTF-8'))
-    print(f'Bit Depth: {bit_depth}')
+    logger.log(logging.INFO, f'Bit Depth: {bit_depth}')
     
     if bit_depth == 1:
         file_name_length = []#Make a list for the file name length
@@ -231,7 +241,7 @@ def decode(image_path, output_path):
                 file_name_length.append("1")
         file_name_length = bit_list_to_byte_list(file_name_length)
         file_name_length = int(file_name_length.decode('UTF-8'))
-        print(f'File Name Length: {file_name_length}')
+        logger.log(logging.INFO, f'File Name Length: {file_name_length}')
         #Get the file name from the data
         file_name = []
         #Get 8 bits for each character starting from the 16th
@@ -244,7 +254,7 @@ def decode(image_path, output_path):
                 file_name.append("1")
         file_name = bit_list_to_byte_list(file_name)
         file_name = file_name.decode('UTF-8')
-        print(f'File Name: {file_name}')
+        logger.log(logging.INFO, f'File Name: {file_name}')
         #Get the file length
         file_length = []
         for i in range(88):
@@ -256,7 +266,7 @@ def decode(image_path, output_path):
                 file_length.append("1")
         file_length = bit_list_to_byte_list(file_length)
         file_length = int(file_length.decode('UTF-8'))
-        print(f'File Length: {file_length} Bytes')
+        logger.log(logging.INFO, f'File Length: {file_length} Bytes')
         #Get the file information
         file_data = []
         hold = file_length*8
@@ -268,9 +278,9 @@ def decode(image_path, output_path):
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
         with open(output_location, "wb") as file:
-            print("Writing bytes to file:  ")
+            logger.log(logging.INFO, "Writing bytes to file:  ")
             file.write(file_data)
-        print("Done")
+        logger.log(logging.INFO, "Done")
     else:
         bit_list = []
         #get the bit list for the first 8112 bits to ensure we have all file information
@@ -292,7 +302,7 @@ def decode(image_path, output_path):
             bit_list_index += 1
         file_name_length = bit_list_to_byte_list(file_name_length)
         file_name_length = int(file_name_length.decode('UTF-8'))
-        print(f'File Name Length: {file_name_length}')
+        logger.log(logging.INFO, f'File Name Length: {file_name_length}')
 
         #Get the file name from the data
         file_name = []
@@ -302,7 +312,7 @@ def decode(image_path, output_path):
             bit_list_index += 1
         file_name = bit_list_to_byte_list(file_name)
         file_name = file_name.decode('UTF-8')
-        print(f'File Name: {file_name}')
+        logger.log(logging.INFO, f'File Name: {file_name}')
 
         #Get the file length
         file_length = []
@@ -311,7 +321,7 @@ def decode(image_path, output_path):
             bit_list_index += 1
         file_length = bit_list_to_byte_list(file_length)
         file_length = int(file_length.decode('UTF-8'))
-        print(f'File Length: {file_length} Bytes')
+        logger.log(logging.INFO, f'File Length: {file_length} Bytes')
 
         #Get data until we have enough to satisfy the file length 
         for i in range(math.ceil((8112+file_length*8)/bit_depth)):
@@ -330,14 +340,16 @@ def decode(image_path, output_path):
         #Delete bit_list
         del(bit_list)
         #Turn the file_data into a list of bytes
-        print("Changing bit_list to byte_list")
+        logger.log(logging.INFO, "Changing bit_list to byte_list")
         file_data = bit_list_to_byte_list(file_data)
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
         with open(output_location, "wb") as file:
-            print("Writing bytes to file:  ")
+            logger.log(logging.INFO, "Writing bytes to file:  ")
             file.write(file_data)
-        print("Done")
+        logger.log(logging.INFO, "Done")
+        
+        state = "Ready"
 
 def output_image(image_data, image_mode, image_size, output_path):
     new_image = Image.new(image_mode, image_size)
