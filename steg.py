@@ -332,6 +332,7 @@ def decode(image_path, output_path):
         logger.log(logging.INFO, f'File Length: {file_length} Bytes')
 
         #Get data until we have enough to satisfy the file length 
+        logger.log(logging.INFO, "Reading File Data")
         for i in range(math.ceil(8112/bit_depth + file_length*8/bit_depth)):
             #get the color as a bitstring then turn it into a list
             color_bit_list = color_to_bit_list(colors[i+colors_offset])
@@ -342,6 +343,7 @@ def decode(image_path, output_path):
         del(colors)
         #Get the file information
         file_data = []
+        logger.log(logging.INFO, "Converting File Data")
         for i in range(file_length*8):
             file_data.append(str(bit_list[bit_list_index]))
             bit_list_index += 1
