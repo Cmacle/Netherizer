@@ -53,7 +53,7 @@ class StartPage(tk.Frame):
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        label = tk.Label(self, text="NETHERIZER v.0.6", font=controller.title_font)
+        label = tk.Label(self, text="NETHERIZER v.0.7.5", font=controller.title_font)
         label.grid(column=0, row=0, sticky="N")
 
         button1 = tk.Button(self, text="Encode",
