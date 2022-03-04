@@ -1,4 +1,3 @@
-from calendar import c
 import logging
 import math
 import os
@@ -55,7 +54,7 @@ def encode(image_path, file_path, bit_depth, output_path):
         if len(pixels[0]) > 3:
                 transparency = True
                 transparency_values = []
-        colors = []
+        colors = bytearray()
         #Turn the pixels into a list of color values and a list for transparency values if a png
 
         logger.log(logging.INFO, "Processing Pixel Data")
@@ -151,8 +150,8 @@ def encode(image_path, file_path, bit_depth, output_path):
                     #Make a list of th evalues as strings
                     bit_list_strings = [str(int) for int in color_bit_list]
                     #Join the new bit_list_strings can cast to int
-                    colors[color_index] = "".join(bit_list_strings)
-                    colors[color_index] = int(colors[color_index] , 2)
+                    hold = "".join(bit_list_strings)
+                    colors[color_index] = int(hold , 2)
                     color_index+=1
 
         #Reconstruct the pixels from the colors
@@ -215,7 +214,7 @@ def decode(image_path, output_path):
     #Delete the image as it is no longer needed
     del(image)
     logger.log(logging.INFO, "Processing Pixel Data")
-    colors = []
+    colors = bytearray()
     #create a list for the color values from every pixel
     for pixel in pixels:
         for i in range(3):
@@ -274,13 +273,25 @@ def decode(image_path, output_path):
         file_length = int(file_length.decode('UTF-8'))
         logger.log(logging.INFO, f'File Length: {file_length} Bytes')
         #Get the file information
-        file_data = []
+        bit_list = bytearray()
         hold = file_length*8
+        logger.log(logging.INFO, f'Getting File Information')
+
         for i in range(file_length*8):
             color = colors[i+colors_offset]
-            file_data.append(str(color%2))
+            bit_list.append(color%2)
             #print(f'{i} : {i/hold*100}%')
-        file_data = bit_list_to_byte_list(file_data)
+
+        logger.log(logging.INFO, f'Converting File Data')
+        file_data = bytearray()
+        bit_list_index = 0
+        for i in range(file_length):
+            hold = []
+            for x in range(8):
+                hold.append(str(bit_list[bit_list_index]))
+                bit_list_index += 1
+            file_data.append(int("".join(hold), 2))
+            
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
         with open(output_location, "wb") as file:
@@ -288,7 +299,7 @@ def decode(image_path, output_path):
             file.write(file_data)
         logger.log(logging.INFO, "Done")
     else:
-        bit_list = []
+        bit_list = bytearray()
         #get the bit list for the first 8112 bits to ensure we have all file information
         colors_offset = 0
 
@@ -298,11 +309,10 @@ def decode(image_path, output_path):
             colors_offset+=1
             #Now read values equal to the bit_depth
             for x in range(bit_depth):
-                bit_list.append(color_bit_list[(x+1)*-1])
+                bit_list.append(int(color_bit_list[(x+1)*-1]))
 
         #Now we start parsing the data
-        bit_list_index = 0 #offset the index to account for the unused color in pixel 3 during encode
-        
+        bit_list_index = 0
         file_name_length = [] #Make a list for the file_name_length
         #get 3 bytes of data
         for i in range(24):
@@ -338,20 +348,24 @@ def decode(image_path, output_path):
             color_bit_list = color_to_bit_list(colors[i+colors_offset])
             #Now read values equal to the bit_depth
             for x in range(bit_depth):
-                bit_list.append(color_bit_list[(x+1)*-1])
+                bit_list.append(int(color_bit_list[(x+1)*-1]))
         #Delete Colors
         del(colors)
         #Get the file information
-        file_data = []
+        file_data = bytearray()
         logger.log(logging.INFO, "Converting File Data")
-        for i in range(file_length*8):
-            file_data.append(str(bit_list[bit_list_index]))
-            bit_list_index += 1
+        for i in range(file_length):
+            hold = []
+            for x in range(8):
+                hold.append(str(bit_list[bit_list_index]))
+                bit_list_index += 1
+            file_data.append(int("".join(hold), 2))
+
         #Delete bit_list
         del(bit_list)
         #Turn the file_data into a list of bytes
         logger.log(logging.INFO, "Changing bit_list to byte_list")
-        file_data = bit_list_to_byte_list(file_data)
+
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
         with open(output_location, "wb") as file:
