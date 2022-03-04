@@ -78,7 +78,9 @@ def encode(image_path, file_path, bit_depth, output_path):
                 for color in pixel:
                     colors.append(color)
         #Encode the file into chunks to reduce memory usage
-        num_chunks = math.ceil(len(file_byte_list)/CHUNK_SIZE)
+        #Make chunk_size divisible by 8 and bit_depth
+        chunk_size = (CHUNK_SIZE//8)* 8 * bit_depth
+        num_chunks = math.ceil(len(file_byte_list)/chunk_size)
 
 
         if bit_depth == 1:
@@ -87,7 +89,7 @@ def encode(image_path, file_path, bit_depth, output_path):
             for i in range(num_chunks):
                 print(f'Chunk: {i+1} of {num_chunks}')
                 logger.log(logging.INFO, f'Chunk: {i+1} of {num_chunks}')
-                bit_list = bytes_to_bit_list(file_byte_list, start_index=i*CHUNK_SIZE, end_index=i*CHUNK_SIZE+CHUNK_SIZE)
+                bit_list = bytes_to_bit_list(file_byte_list, start_index=i*chunk_size, end_index=i*chunk_size+chunk_size)
                 #Edit Pixel Data until all file bits have been written
                 for bit in bit_list:                  
                     color_value_even = colors[color_index]%2==0
@@ -103,51 +105,55 @@ def encode(image_path, file_path, bit_depth, output_path):
 
         else:
             logger.log(logging.INFO, "Translating Input File")
-            bit_list = bytes_to_bit_list(file_byte_list)
-            bit_list_len = len(bit_list)
-            bit_list_index = 0
+            #bit_list = bytes_to_bit_list(file_byte_list)
+            #bit_list_len = len(bit_list)
+            #bit_list_index = 0
             color_index = 0
-            out_of_bits = False
+            #out_of_bits = False
             logger.log(logging.INFO, "Writing File Data to Image")
-            print(f'Colors Len = {len(colors)} Bit List Len = {len(bit_list)}')
-            while bit_list_index+1 < 9:
-                #check if there are any bits left to write
-                next_bit = bit_list[bit_list_index]
-                bit_list_index+=1                    
-                color_value_even = colors[color_index]%2==0
 
-                if next_bit and color_value_even: 
+            bit_list = bytes_to_bit_list(file_byte_list, start_index=0, end_index=1)
+            for bit in bit_list:
+                #check if there are any bits left to write                   
+                color_value_even = colors[color_index]%2==0
+                if bit and color_value_even: 
                         #if the next bit and last value of the color are different
                         #edit the color
                     colors[color_index] = colors[color_index] + 1
                    
-                elif not next_bit and not color_value_even:
+                elif not bit and not color_value_even:
                     colors[color_index] = colors[color_index] - 1
                 color_index+=1
             #Now handle the rest of the pixels and data with the new method
-            while bit_list_index+1 < bit_list_len:
-                if out_of_bits:
-                    break
-                #Get the color as a string in binary
-                color_bit_list = format(colors[color_index], "b")
-                color_bit_list = color_bit_list.rjust(8,"0") #Pad string to 8 bits
-                color_bit_list = list(color_bit_list) #Make it a list
-                #rewrite bits in values equal to bitdepth starting with LSB
-                for x in range(bit_depth):
-                    #check for remaining bits
-                    if bit_list_index+1 < bit_list_len:
+            for i in range(num_chunks):
+                logger.log(logging.INFO, f'Chunk: {i+1} of {num_chunks}')
+                bit_list = bytes_to_bit_list(file_byte_list, start_index=i*chunk_size+1, end_index=i*chunk_size+chunk_size+1)
+                bit_list_len = len(bit_list)
+                bit_list_index = 0
+                for x in range(bit_list_len//bit_depth):
+
+                    #Get the color as a string in binary
+                    color_bit_list = format(colors[color_index], "b")
+                    color_bit_list = color_bit_list.rjust(8,"0") #Pad string to 8 bits
+                    color_bit_list = list(color_bit_list) #Make it a list
+                    #rewrite bits in values equal to bitdepth starting with LSB
+                    for x in range(bit_depth):
                         next_bit = bit_list[bit_list_index]
                         bit_list_index+=1
-                    else:
-                        out_of_bits = True
-                        break
-                    color_bit_list[(x+1)*-1] = int(next_bit)
-                #Make a list of th evalues as strings
-                bit_list_strings = [str(int) for int in color_bit_list]
-                #Join the new bit_list_strings can cast to int
-                colors[color_index] = "".join(bit_list_strings)
-                colors[color_index] = int(colors[color_index] , 2)
-                color_index+=1
+                        #check for remaining bits
+                        #if bit_list_index+1 < bit_list_len:
+                        #    next_bit = bit_list[bit_list_index]
+                        #    bit_list_index+=1
+                        #else:
+                        #    out_of_bits = True
+                        #    break
+                        color_bit_list[(x+1)*-1] = int(next_bit)
+                    #Make a list of th evalues as strings
+                    bit_list_strings = [str(int) for int in color_bit_list]
+                    #Join the new bit_list_strings can cast to int
+                    colors[color_index] = "".join(bit_list_strings)
+                    colors[color_index] = int(colors[color_index] , 2)
+                    color_index+=1
 
         #Reconstruct the pixels from the colors
         logger.log(logging.INFO, "Reconstructing Pixels")
