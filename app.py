@@ -78,6 +78,7 @@ class EncodePage(tk.Frame):
     bit_depth = "1"
     output_path = None
     state = ""
+    counter = 0
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
@@ -202,6 +203,15 @@ class EncodePage(tk.Frame):
         self.scrolled_text.yview(tk.END)
 
     def poll_log_queue(self):
+        #Every 1 second we will output the progress on the current step if applicable
+        if self.counter >= 10:
+            try:
+                steg.logger.log(logging.INFO, f'{int(steg.progress/steg.target*100)}%')
+                self.counter = 0
+            except ZeroDivisionError:
+                pass
+        else:
+            self.counter+=1
         # Check every 100ms if there is a new message in the queue to display
         while True:
             try:
