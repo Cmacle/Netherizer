@@ -69,7 +69,7 @@ def encode(image_path, file_path, bit_depth, output_path):
             if transparency:
                 print("Byte List Len: ",byte_list_len*8)
                 for x, pixel in enumerate(pixels):
-                    progress = x
+                    progress = x * bit_depth
                     if x*bit_depth > byte_list_len * 8 / 3 + 56:
                         color_stop = x
                         break
@@ -198,7 +198,7 @@ def encode(image_path, file_path, bit_depth, output_path):
             logger.log(logging.INFO, "Appending unaltered pixels")
             target = len(pixels) - color_stop
             for i in range(color_stop, len(pixels)):
-                progress = i
+                progress = i - color_stop
                 new_im_data.append(pixels[i])
             del(pixels)
             target = 0
