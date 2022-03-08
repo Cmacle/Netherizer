@@ -53,17 +53,20 @@ class StartPage(tk.Frame):
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        label = tk.Label(self, text="NETHERIZER v.0.7.5", font=controller.title_font)
-        label.grid(column=0, row=0, sticky="N")
+        title = tk.Label(self, text="NETHERIZER v.0.7.8", font=controller.title_font)
+        title.grid(column=1, row=0, sticky="N", padx=250)
 
-        button1 = tk.Button(self, text="Encode",
+        sub_title = tk.Label(self, text="Image Steganography")
+        sub_title.grid(column=1, row=1)
+
+        button1 = tk.Button(self, text="Encode", font=controller.title_font,
                             command=lambda: controller.show_frame("EncodePage"),
                             width=10, height=2)
-        button2 = tk.Button(self, text="Decode",
+        button2 = tk.Button(self, text="Decode", font=controller.title_font,
                             command=lambda: controller.show_frame("DecodePage"),
                             width=10, height=2)
-        button1.grid(column=0, row=1, padx=350)
-        button2.grid(column=0, row=2, padx=350)
+        button1.grid(column=1, row=2, pady=(50,0), )
+        button2.grid(column=1, row=3, pady=(10,0), )
 
 
 class EncodePage(tk.Frame):
@@ -300,10 +303,10 @@ class DecodePage(tk.Frame):
                            command=lambda: controller.show_frame("StartPage"))
         backbutton.grid(column=0, row=0, padx=2, pady=2, sticky=SW)
         title = tk.Label(self, text="Decode", font=controller.title_font)
-        title.grid(column=2, row=0, padx=50)
+        title.grid(column=1, row=0, padx=25)
 
         choose_image_label = tk.Label(self, text="Choose Image to Decode:")
-        choose_image_label.grid(column=0, row=1, pady=(100,0))
+        choose_image_label.grid(column=0, row=1, pady=(100,0), padx=(50,0))
         choose_image_button = tk.Button(self, text="Choose Image",
                                         command=lambda: self.choose_decode_image())
         choose_image_button.grid(column=0, row=2, pady=10)
