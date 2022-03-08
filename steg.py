@@ -1,7 +1,9 @@
 import logging
 import math
 import os
+import sys
 from tkinter import StringVar
+from typing import Type
 from PIL import Image
 
 
@@ -9,9 +11,11 @@ from PIL import Image
 
 state = "Ready"
 #These two variables will be used to track progress throughout loops within the code
+#so it can be displayed to the UI periodically
 progress = 0
 target = 0
 logger = ""
+
 def encode(image_path, file_path, bit_depth, output_path):
     """
     This will take the input image and file to be hidden within
@@ -19,25 +23,26 @@ def encode(image_path, file_path, bit_depth, output_path):
     ascending order according to the bit_depth. With lower values
     having less impact on the image and having less data capacity.
     """
+    #CHUNK_SIZE will control how large each chunk of data from the input
+    #file will be while encoded, the value will be made made divisible by 8
+    #then multiplied by the bit_depth so later loops can be simplified
+    CHUNK_SIZE = 10000
+    global state
+    global progress
+    global target
     try:
-        CHUNK_SIZE = 10000
 
-        global state
-        global progress
-        global target
         state = "ENCODING"
 
         logger.log(logging.INFO, "Encoding")
         logger.log(logging.INFO, "Processing Input File")
 
         file_byte_list = file_to_byte_list(file_path, bit_depth)
-        #byte_list_to_file(file_byte_list, "")
 
         logger.log(logging.INFO, "Opening Image")
 
         image = Image.open(image_path)
         #Get the pixel data from the image
-
         logger.log(logging.INFO, "Extracting Pixel Data")
 
         pixels = image.getdata()
@@ -51,12 +56,14 @@ def encode(image_path, file_path, bit_depth, output_path):
 
         if os.path.getsize(file_path) <= max_input_size(width, height, bit_depth, len(os.path.basename(file_path))):
             new_im_data = []
-            #bit_list = bytes_to_bit_list(file_byte_list)
-            #bit_list_len = len(bit_list)
+
             byte_list_len = len(file_byte_list)
             color_stop = 0
+
             #Check if the image is a png and if so create a list for transparency values
+            #this is so we can add those values back later
             transparency = False
+
             if len(pixels[0]) > 3:
                     transparency = True
                     transparency_values = []
@@ -204,7 +211,6 @@ def encode(image_path, file_path, bit_depth, output_path):
             target = 0
 
             logger.log(logging.INFO, "Writing Output File")
-            print(len(new_im_data))
             output_image(new_im_data, image_mode, image_size, output_path)
 
             logger.log(logging.INFO, "Done")
@@ -213,7 +219,14 @@ def encode(image_path, file_path, bit_depth, output_path):
             logger.log(logging.ERROR, "INPUT FILE TOO LARGE")
         state = "Ready"
     except Exception as err:
+        exception_type, exception_object, exception_traceback = sys.exc_info()
+        filename = exception_traceback.tb_frame.f_code.co_filename
+        line_number = exception_traceback.tb_lineno
+
         logger.log(logging.CRITICAL, f'Critical Error Process Aborted: \n {err}')
+        logger.log(logging.CRITICAL, f'Exception type: {exception_type}')
+        logger.log(logging.CRITICAL, f'File name: {filename}')
+        logger.log(logging.CRITICAL, f'Line number: {line_number}')
         state = "Ready"
 
 def decode(image_path, output_path):
@@ -410,9 +423,18 @@ def decode(image_path, output_path):
 
             state = "Ready"
     except Exception as err:
+        exception_type, exception_object, exception_traceback = sys.exc_info()
+        filename = exception_traceback.tb_frame.f_code.co_filename
+        line_number = exception_traceback.tb_lineno
+
         logger.log(logging.CRITICAL, 
         f'Critical Error, Process Aborted: Are you sure this image has been encoded? \n{err}')
+        logger.log(logging.CRITICAL, f'Exception type: {exception_type}')
+        logger.log(logging.CRITICAL, f'File name: {filename}')
+        logger.log(logging.CRITICAL, f'Line number: {line_number}')
         state = "Ready"
+
+
 
 def output_image(image_data, image_mode, image_size, output_path):
     new_image = Image.new(image_mode, image_size)
@@ -481,6 +503,11 @@ def int_to_byte(x):
     return str(x).encode()
 
 def bytes_to_bit_list(byte_list, start_index = None, end_index = None):
+    """
+    This function takes a list of bytes and returns a list of bits
+    that can be encoded. If there is an end_index given it will only
+    return the bits for the bytes within the range provided. 
+    """
     bit_list = []
     if end_index:
         #Make sure the start_index is in range if not return an empty list
@@ -513,7 +540,7 @@ def file_to_byte_list(file_path, bit_depth):
     """
     This will take a file and return a list of bytes so that it can be
     encoded. It will additionally append file information including
-    bitdepth, file name and file type that will allow it to be decoded.
+    bitdepth, file name and file length that will allow it to be decoded.
     This is for use in the encode function.
     """
     byte_list = []   #Declare the Byte list that will be returned
@@ -545,6 +572,4 @@ def file_to_byte_list(file_path, bit_depth):
     
 
 if __name__ == "__main__":
-    encode("test/test2.jpg", "test/test.txt", 1, "output.png")
-    decode("output.png", "")
-    pass
+    print("Run app.py")

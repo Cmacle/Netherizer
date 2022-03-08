@@ -1,3 +1,4 @@
+FOR REFERENCE ONLY
 1 Byte bit depth
 3 Byte File Name Length
 X Bytes File Name
