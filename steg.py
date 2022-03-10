@@ -3,7 +3,7 @@ import math
 import os
 import sys
 from tkinter import StringVar
-from typing import Type
+from typing import List, Optional, Tuple, Type
 from PIL import Image
 
 
@@ -16,7 +16,7 @@ progress = 0
 target = 0
 logger = ""
 
-def encode(image_path, file_path, bit_depth, output_path):
+def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
     """
     This will take the input image and file to be hidden within
     the input image. It will then overwrite LSB pixel data in
@@ -229,7 +229,7 @@ def encode(image_path, file_path, bit_depth, output_path):
         logger.log(logging.CRITICAL, f'Line number: {line_number}')
         state = "Ready"
 
-def decode(image_path, output_path):
+def decode(image_path: str, output_path: str):
     """
     This will take an image that has been encoded previously and
     output the file that was encoded into the image to the output_path.
@@ -268,7 +268,7 @@ def decode(image_path, output_path):
                     bit_depth.append("0")
                 else:
                     bit_depth.append("1")
-        bit_depth = bit_list_to_byte_list(bit_depth)
+        bit_depth = bit_list_to_bytes(bit_depth)
         bit_depth = int(bit_depth.decode('UTF-8'))
         logger.log(logging.INFO, f'Bit Depth: {bit_depth}')
         
@@ -282,7 +282,7 @@ def decode(image_path, output_path):
                     file_name_length.append("0")
                 else:
                     file_name_length.append("1")
-            file_name_length = bit_list_to_byte_list(file_name_length)
+            file_name_length = bit_list_to_bytes(file_name_length)
             file_name_length = int(file_name_length.decode('UTF-8'))
             logger.log(logging.INFO, f'File Name Length: {file_name_length}')
             #Get the file name from the data
@@ -295,7 +295,7 @@ def decode(image_path, output_path):
                     file_name.append("0")
                 else:
                     file_name.append("1")
-            file_name = bit_list_to_byte_list(file_name)
+            file_name = bit_list_to_bytes(file_name)
             file_name = file_name.decode('UTF-8')
             logger.log(logging.INFO, f'File Name: {file_name}')
             #Get the file length
@@ -307,7 +307,7 @@ def decode(image_path, output_path):
                     file_length.append("0")
                 else:
                     file_length.append("1")
-            file_length = bit_list_to_byte_list(file_length)
+            file_length = bit_list_to_bytes(file_length)
             file_length = int(file_length.decode('UTF-8'))
             logger.log(logging.INFO, f'File Length: {file_length} Bytes')
             #Get the file information
@@ -360,7 +360,7 @@ def decode(image_path, output_path):
             for i in range(24):
                 file_name_length.append(str(bit_list[bit_list_index]))
                 bit_list_index += 1
-            file_name_length = bit_list_to_byte_list(file_name_length)
+            file_name_length = bit_list_to_bytes(file_name_length)
             file_name_length = int(file_name_length.decode('UTF-8'))
             logger.log(logging.INFO, f'File Name Length: {file_name_length}')
 
@@ -370,7 +370,7 @@ def decode(image_path, output_path):
             for i in range(file_name_length*8):
                 file_name.append(str(bit_list[bit_list_index]))
                 bit_list_index += 1
-            file_name = bit_list_to_byte_list(file_name)
+            file_name = bit_list_to_bytes(file_name)
             file_name = file_name.decode('UTF-8')
             logger.log(logging.INFO, f'File Name: {file_name}')
 
@@ -379,7 +379,7 @@ def decode(image_path, output_path):
             for i in range(88):
                 file_length.append(str(bit_list[bit_list_index]))
                 bit_list_index += 1
-            file_length = bit_list_to_byte_list(file_length)
+            file_length = bit_list_to_bytes(file_length)
             file_length = int(file_length.decode('UTF-8'))
             logger.log(logging.INFO, f'File Length: {file_length} Bytes')
 
@@ -436,73 +436,64 @@ def decode(image_path, output_path):
 
 
 
-def output_image(image_data, image_mode, image_size, output_path):
+def output_image(image_data: List[Tuple[int, ...]], image_mode: str, image_size: Tuple[int,int], output_path: str) -> None:
+    """
+    Takes a list of pixel data, creates a new image using 
+    image_mode and image_size then outputs to the output path
+    """
     new_image = Image.new(image_mode, image_size)
     new_image.putdata(image_data)
     new_image.save(output_path, format="PNG")
 
 
-def color_to_bit_list(color):
-    #Turns an int into an 8 
+def color_to_bit_list(color: int) -> List[str]:
+    """
+    Takes a color value as an int and converts it to a
+    list of strings 8 characters long of its binary
+    string representation.
+    """
     color_bit_list = format(color, "b")
     color_bit_list = color_bit_list.rjust(8, "0") #Pad the string to 8 characters
     color_bit_list = list(color_bit_list)
     return color_bit_list
 
-def max_input_size(width, height, bit_depth, file_name_length = None):
-    #This will calculate the largest possible file that can be encoded
-    #The file_name_length is optional
+def max_input_size(width: int, height: int, bit_depth: int, file_name_length: int = None) -> int:
+    """
+    Calculates the maximum input file size based on the provided
+    width, height and bit_depth. If file_name_length is provided
+    it will be subtracted from the total.
+    """
     max_size = (width*height*3*bit_depth)/8
     if file_name_length:
         max_size -= file_name_length
     return max_size
 
-def max_input_size_from_path(path, bit_depth):
+def max_input_size_from_path(path: int, bit_depth: int) -> int:
+    """
+    Calculates the maximum input file size from the provided image path
+    as well as the bit_depth.
+    """
     image = Image.open(path)
     width, height = image.size
     max_size = (width*height*3*bit_depth)/8
     max_size = max_size - len(os.path.basename(path))
     return max_size
 
-def byte_list_to_file(byte_list, output_path):
-    #For testing purposes
-    bit_depth = int(byte_list.pop(0).decode())
-    print(f'Bit Depth: {bit_depth}')
-    file_name_length = int(byte_list.pop(0).decode('UTF-8'))
-    print(f'File Name Length: {file_name_length}')
-    file_name = []
-
-    for num in range(file_name_length):
-        file_name.append(byte_list.pop(0).decode('UTF-8'))
-
-    file_name = "".join(file_name)
-    print(f'File Name: {file_name}')
-
-    binary_string = ""
-    for index in range(4):
-        #Get the next byte and turn it into a binary string
-        next_byte = format(int(byte_list.pop(0).decode()), "b")
-        next_byte = next_byte.rjust(8, "0") #Pad the string to 8 characters
-        binary_string = binary_string + next_byte
-    file_length = int(binary_string, 2)
-    print(f'File Length: {file_length}')
-
-    with open(file_name, "wb") as file:
-        print("Writing bytes to file:  ")
-        while byte_list:
-            file.write(byte_list.pop(0))
-
-def bit_list_to_byte_list(bit_list):
-    #This takes a list of bits and returns a list of bytes
-    #input length must be divisible by 8
+def bit_list_to_bytes(bit_list: List[str]) -> bytes:
+    """
+    Takes a list of bit values as strings ("0" or "1") and returns
+    bytes. len(bit_list) must be divisible by 8
+    """
     bit_string = "".join(bit_list)
     return int(bit_string, 2).to_bytes(len(bit_string) // 8, byteorder='big')
             
-def int_to_byte(x):
-    #Turns an int into a string then a byte
+def int_to_byte(x: int) -> str:
+    """
+    Takes an int and returns a utf-8 encoded str of the int
+    """
     return str(x).encode()
 
-def bytes_to_bit_list(byte_list, start_index = None, end_index = None):
+def bytes_to_bit_list(byte_list: List[str], start_index: Optional[int] = None, end_index: Optional[int] = None):
     """
     This function takes a list of bytes and returns a list of bits
     that can be encoded. If there is an end_index given it will only
@@ -536,17 +527,13 @@ def bytes_to_bit_list(byte_list, start_index = None, end_index = None):
                 bit_list.append(bit)
     return bit_list
 
-def file_to_byte_list(file_path, bit_depth):
+def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
     """
-    This will take a file and return a list of bytes so that it can be
-    encoded. It will additionally append file information including
-    bitdepth, file name and file length that will allow it to be decoded.
-    This is for use in the encode function.
+    This will take a file and return a list of UTF-8 encoded strings. 
     """
     byte_list = []   #Declare the Byte list that will be returned
     byte_list.append(int_to_byte(bit_depth))   #Appends the bit depth to the list as a byte
     file_name = os.path.basename(file_path)   #Get the file name from the path
-    print(file_name)
     file_name_length = len(file_name) #Get the length of the file name
     file_name_length = str(file_name_length).rjust(3, "0") #Change to a string and pad to 3 characters
     for character in file_name_length:

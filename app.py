@@ -282,8 +282,7 @@ class EncodePage(tk.Frame):
                                                             int(self.bit_depth.get()), self.output_path.get()))
                 thread.daemon = True
                 thread.start()
-                #thread.join()
-                #steg.encode(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get())
+
             else:
                 steg.logger.log(logging.WARN, "PROCESS ONGOING")
 
@@ -394,8 +393,7 @@ class DecodePage(tk.Frame):
                 thread = Thread(target=steg.decode, args = (self.image_path, self.output_path))
                 thread.daemon = True
                 thread.start()
-                #thread.join()
-                #steg.encode(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path.get())
+
             else:
                 steg.logger.log(logging.WARN, "PROCESS ONGOING")
 
