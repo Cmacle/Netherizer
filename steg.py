@@ -2,8 +2,7 @@ import logging
 import math
 import os
 import sys
-from tkinter import StringVar
-from typing import List, Optional, Tuple, Type
+from typing import List, Optional, Tuple
 from PIL import Image
 
 

@@ -6,7 +6,6 @@ from threading import Thread
 from tkinter import LEFT, SOLID, SW, Label, OptionMenu, StringVar, Toplevel, font as tkfont
 from tkinter import filedialog
 from tkinter.scrolledtext import ScrolledText
-from turtle import color, title
 import steg
 
 LOG_LEVEL = 20
