@@ -451,6 +451,9 @@ def color_to_bit_list(color: int) -> List[str]:
     list of strings 8 characters long of its binary
     string representation.
     """
+    if color > 255 or color < 0:
+        raise ValueError("Input out of range: 0-255")
+
     color_bit_list = format(color, "b")
     color_bit_list = color_bit_list.rjust(8, "0") #Pad the string to 8 characters
     color_bit_list = list(color_bit_list)
@@ -462,7 +465,7 @@ def max_input_size(width: int, height: int, bit_depth: int, file_name_length: in
     width, height and bit_depth. If file_name_length is provided
     it will be subtracted from the total.
     """
-    max_size = (width*height*3*bit_depth)/8
+    max_size = (width*height*3*bit_depth)//8
     if file_name_length:
         max_size -= file_name_length
     return max_size
@@ -492,10 +495,10 @@ def int_to_byte(x: int) -> str:
     """
     return str(x).encode()
 
-def bytes_to_bit_list(byte_list: List[str], start_index: Optional[int] = None, end_index: Optional[int] = None):
+def bytes_to_bit_list(byte_list: List[str], start_index: Optional[int] = None, end_index: Optional[int] = None) -> List[int]:
     """
-    This function takes a list of bytes and returns a list of bits
-    that can be encoded. If there is an end_index given it will only
+    This function takes a list of bytes and returns a list of ints with
+    values of 1 or 0. If there is an end_index given it will only
     return the bits for the bytes within the range provided. 
     """
     bit_list = []
@@ -521,7 +524,7 @@ def bytes_to_bit_list(byte_list: List[str], start_index: Optional[int] = None, e
             hold = []
             for i in range(8):
                     next_bit = (byte[0] >> i) & 1
-                    hold.insert(0, bool(next_bit))
+                    hold.insert(0, next_bit)
             for bit in hold:
                 bit_list.append(bit)
     return bit_list
