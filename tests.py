@@ -1,5 +1,10 @@
+import io
+import os
+import shutil
 import unittest
 import steg
+from PIL import Image
+from os.path import exists
 
 class StegTests(unittest.TestCase):
 
@@ -32,6 +37,61 @@ class StegTests(unittest.TestCase):
         [0,1,0,0,0,0,0,1])
         self.assertEqual(steg.bytes_to_bit_list([b'\x00']),
         [0,0,0,0,0,0,0,0])
+
+class EncodeDecodeTest(unittest.TestCase):
+    temp_directory = ""
+    temp_directory_output = ""
+    def setUp(self):
+        FILE_TEXT = "This is a temporary test file."
+        #Create a temporary folder with a file and image to test encode and decode
+        current_directory = os.getcwd()
+        directory_name = "testing_temp"
+        output_directory_name = "output"
+        self.temp_directory = os.path.join(current_directory, directory_name)
+        try:
+            os.mkdir(self.temp_directory)
+        except OSError:
+            pass
+        self.temp_directory_output = os.path.join(self.temp_directory, output_directory_name)
+        try:
+            os.mkdir(self.temp_directory_output)
+        except OSError:
+            pass
+        temp_img = Image.new("RGB", (100, 100), (255, 255, 255))
+        temp_img.save(os.path.join(self.temp_directory, "temp_png.png"), "PNG")
+
+        with open(os.path.join(self.temp_directory, "temp_txt.txt"), "w") as temp_file:
+            temp_file.write(FILE_TEXT)
+        
+
+    def test_encode_decode(self):
+        file_path = os.path.join(self.temp_directory, "temp_txt.txt")
+        image_path = os.path.join(self.temp_directory, "temp_png.png")
+        output_image_path = os.path.join(self.temp_directory_output, "temp_output.png")
+        output_file_path = os.path.join(self.temp_directory_output, "temp_txt.txt")
+        #Run the test for each bit_depth value
+        for i in range(1,9):
+            #Create the encoded image
+            steg.encode(image_path, file_path, i, output_image_path)
+            #Decode that image
+            steg.decode(output_image_path, self.temp_directory_output)
+            #Compare the two output files
+            file1 = io.open(file_path)
+            file2 = io.open(output_file_path)
+            self.assertListEqual(
+                list(file1),
+                list(file2)
+            )
+            file1.close()
+            file2.close()
+    
+    def tearDown(self):
+        #Delete any existing temporary files
+        shutil.rmtree(self.temp_directory)
+
+        
+
+
 
 if __name__ == '__main__':
     unittest.main()

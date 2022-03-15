@@ -13,7 +13,10 @@ state = "Ready"
 #so it can be displayed to the UI periodically
 progress = 0
 target = 0
-logger = ""
+logger = logging.getLogger(__name__)
+
+#Test if we are running tests and if so create a logger to avoid errors
+
 
 def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
     """
@@ -29,6 +32,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
     global state
     global progress
     global target
+    print("BitDepth = "+ str(bit_depth))
     try:
 
         state = "ENCODING"
@@ -143,6 +147,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
                                                 start_index=i*chunk_size+1, 
                                                 end_index=i*chunk_size+chunk_size+1)
                     bit_list_len = len(bit_list)
+                    print("BIT LIST LEN:", bit_list_len)
                     bit_list_index = 0
                     for x in range(bit_list_len//bit_depth):
 
@@ -154,13 +159,6 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
                         for x in range(bit_depth):
                             next_bit = bit_list[bit_list_index]
                             bit_list_index+=1
-                            #check for remaining bits
-                            #if bit_list_index+1 < bit_list_len:
-                            #    next_bit = bit_list[bit_list_index]
-                            #    bit_list_index+=1
-                            #else:
-                            #    out_of_bits = True
-                            #    break
                             color_bit_list[(x+1)*-1] = int(next_bit)
                         #Make a list of th evalues as strings
                         bit_list_strings = [str(int) for int in color_bit_list]
@@ -168,6 +166,28 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
                         hold = "".join(bit_list_strings)
                         colors[color_index] = int(hold , 2)
                         color_index+=1
+                
+                #If the last chunk had a length that was not divisible by the
+                #bit_depth we will pull one final color and append those bits
+                remaining_bits = bit_list_len % bit_depth
+                if remaining_bits:
+                    print("REMAINING BITS: ", remaining_bits)
+
+                    #Get the color as a string in binary
+                    color_bit_list = format(colors[color_index], "b")
+                    color_bit_list = color_bit_list.rjust(8,"0") #Pad string to 8 bits
+                    color_bit_list = list(color_bit_list) #Make it a list
+                    #rewrite bits in values equal to bitdepth starting with LSB
+                    for x in range(remaining_bits):
+                        next_bit = bit_list[bit_list_index]
+                        bit_list_index+=1
+                        color_bit_list[(x+1)*-1] = int(next_bit)
+                    #Make a list of th evalues as strings
+                    bit_list_strings = [str(int) for int in color_bit_list]
+                    #Join the new bit_list_strings can cast to int
+                    hold = "".join(bit_list_strings)
+                    colors[color_index] = int(hold , 2)
+                    color_index+=1
 
             #Reconstruct the pixels from the colors
             logger.log(logging.INFO, "Reconstructing Pixels")
@@ -386,7 +406,7 @@ def decode(image_path: str, output_path: str):
             logger.log(logging.INFO, "Reading File Data")
 
             target = math.ceil(8112/bit_depth + file_length*8/bit_depth)
-            for i in range(math.ceil(8112/bit_depth + file_length*8/bit_depth)):
+            for i in range(math.ceil(8112/bit_depth + file_length*8/bit_depth)+1):
                 progress = i
                 #get the color as a bitstring then turn it into a list
                 color_bit_list = color_to_bit_list(colors[i+colors_offset])
