@@ -76,14 +76,12 @@ class EncodeDecodeTest(unittest.TestCase):
             #Decode that image
             steg.decode(output_image_path, self.temp_directory_output)
             #Compare the two output files
-            file1 = io.open(file_path)
-            file2 = io.open(output_file_path)
-            self.assertListEqual(
-                list(file1),
-                list(file2)
-            )
-            file1.close()
-            file2.close()
+            with open(file_path, "r") as file1, open(output_file_path, "r") as file2:
+                self.assertListEqual(
+                    list(file1),
+                    list(file2)
+                )
+
     
     def tearDown(self):
         #Delete any existing temporary files
