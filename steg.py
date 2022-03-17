@@ -15,8 +15,7 @@ target = 0
 
 logger = logging.getLogger(__name__)
 
-
-def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
+def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) -> None:
     """
     This will take the input image and file to be hidden within
     the input image. It will then overwrite LSB pixel data in
@@ -31,7 +30,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
     global state
     global progress
     global target
-    print("BitDepth = "+ str(bit_depth))
+    print(f'BitDepth = {bit_depth}')
     try:
 
         state = "ENCODING"
@@ -227,10 +226,8 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
                 new_im_data.append(pixels[i])
             del(pixels)
             target = 0
-
             logger.log(logging.INFO, "Writing Output File")
             output_image(new_im_data, image_mode, image_size, output_path)
-
             logger.log(logging.INFO, "Done")
         else:
             print("File too large")
@@ -247,7 +244,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str):
         logger.log(logging.CRITICAL, f'Line number: {line_number}')
         state = "Ready"
 
-def decode(image_path: str, output_path: str):
+def decode(image_path: str, output_path: str) -> None:
     """
     This will take an image that has been encoded previously and
     output the file that was encoded into the image to the output_path.
@@ -455,8 +452,6 @@ def decode(image_path: str, output_path: str):
         logger.log(logging.CRITICAL, f'Line number: {line_number}')
         state = "Ready"
 
-
-
 def output_image(image_data: List[Tuple[int, ...]], 
                 image_mode: str, 
                 image_size: Tuple[int,int], 
@@ -469,7 +464,6 @@ def output_image(image_data: List[Tuple[int, ...]],
     new_image = Image.new(image_mode, image_size)
     new_image.putdata(image_data)
     new_image.save(output_path, format="PNG")
-
 
 def color_to_bit_list(color: int) -> List[str]:
     """
@@ -586,7 +580,9 @@ def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
                 break
             byte_list.append(byte)
     return byte_list
-    
+
+def num_pixels_transparent(img: Image) -> int:
+    pass
 
 if __name__ == "__main__":
     print("Run app.py")

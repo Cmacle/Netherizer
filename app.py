@@ -52,7 +52,7 @@ class StartPage(tk.Frame):
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        title = tk.Label(self, text="NETHERIZER v.0.7.8", font=controller.title_font)
+        title = tk.Label(self, text="NETHERIZER v.0.9.0", font=controller.title_font)
         title.grid(column=1, row=0, sticky="N", padx=250)
 
         sub_title = tk.Label(self, text="Image Steganography")
