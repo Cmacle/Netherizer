@@ -129,6 +129,7 @@ class EncodePage(tk.Frame):
             "6",
             "7",
             "8",
+            "0",
         ]
         self.bit_depth.set("1")
         bit_depth_menu = OptionMenu(self, self.bit_depth, *bit_depth_options)
@@ -269,8 +270,12 @@ class EncodePage(tk.Frame):
 
     def update_max_input_size(self, *args):
         if self.image_path:
-            max_input_size_string = f'''\rMax File input size:\r{steg.max_input_size_from_path(self.image_path, int(self.bit_depth.get()))/1000}KB'''
-            self.max_input_size_string.set(max_input_size_string)
+            if self.bit_depth.get() == 0:
+                max_input_size_string = f'''\rMax File input size:\r{steg.max_size_transparent_from_path(self.image_path, int(self.bit_depth.get()))/1000}KB'''
+                self.max_input_size_string.set(max_input_size_string)
+            else:
+                max_input_size_string = f'''\rMax File input size:\r{steg.max_input_size_from_path(self.image_path, int(self.bit_depth.get()))/1000}KB'''
+                self.max_input_size_string.set(max_input_size_string)
     
     def encode(self):
         #print(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path)
