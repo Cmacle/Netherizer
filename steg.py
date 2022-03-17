@@ -265,17 +265,14 @@ def decode(image_path: str, output_path: str) -> None:
         logger.log(logging.INFO, "Processing Pixel Data")
         state = "Processing Pixel Data"
         colors = bytearray()
-        #create a list for the color values from every pixel
-        target = len(pixels)
-        for x, pixel in enumerate(pixels):
-            progress = x
+
+        #Get the color data from the first 3 pixels to retrieve the bit_depth
+        for x in range(3):
             for i in range(3):
-                colors.append(pixel[i])
-        target = 0
-        del(pixels)
+                colors.append(pixels[x][i])
+        
         bit_depth = []
 
-        logger.log(logging.INFO, "Reading Data")
         #Get the Bit Depth from the first 8 color values
         for i in range(8):
             color = colors.pop(0)
@@ -287,7 +284,31 @@ def decode(image_path: str, output_path: str) -> None:
         bit_depth = bit_list_to_bytes(bit_depth)
         bit_depth = int(bit_depth.decode('UTF-8'))
         logger.log(logging.INFO, f'Bit Depth: {bit_depth}')
+
+        #If bit_depth is 0 we will only read from tranparent pixels
+        target = len(pixels)
+        transparency = False
+        if bit_depth == 0:
+            transparency = True
+            bit_depth = 8
+            for x in range(3, len(pixels)):
+                progress = x
+                #For each pixel check if the transparency value is 0
+                #If it is append those colors to colors
+                if pixels[x][3] == 0:
+                    for i in range(3):
+                        colors.append(pixels[x][i])
+        else:
+            #If bit_depth is not 0 read data from all pixels
+            for x, pixel in enumerate(pixels):
+                progress = x
+                for i in range(3):
+                    colors.append(pixel[i])
+        target = 0
+        del(pixels)
         
+        logger.log(logging.INFO, "Reading Data")
+
         if bit_depth == 1:
             file_name_length = []#Make a list for the file name length
             colors_offset = 0 #Keep track of what color we are on
