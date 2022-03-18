@@ -515,9 +515,6 @@ def decode(image_path: str, output_path: str) -> None:
             target = 0
             #Delete bit_list
             del(bit_list)
-            #Turn the file_data into a list of bytes
-            logger.log(logging.INFO, "Changing bit_list to byte_list")
-
             #Write the data to a file
             output_location = os.path.join(output_path, file_name)
             with open(output_location, "wb") as file:
