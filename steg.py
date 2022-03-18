@@ -671,6 +671,10 @@ def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
     return byte_list
 
 def num_pixels_transparent(img: Image) -> int:
+    """
+    Takes an image and returns the number of transparent pixels
+    contained within it.
+    """
     pixels = img.getdata()
     num_transparent = 0
     for pixel in pixels:
