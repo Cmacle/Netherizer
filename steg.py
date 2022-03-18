@@ -58,6 +58,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
         image_size = image.size
         #Delete the image as it is no longer needed
         del(image)
+        logger.log(logging.DEBUG, f'Num Pixels: {len(pixels)}')
 
         new_im_data = []
 
@@ -93,7 +94,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
                         break
                 #check if the pixel is transparent
                 elif pixels[x][3] == 0:
-                    progress =0
+                    progress += 1
                     #if the pixel is transparent append the colors
                     for i in range(3):
                         colors.append(pixels[x][i])
@@ -229,8 +230,10 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
                 #Append to new_im_data as a tuple
                 new_im_data.append(tuple(new_pixel))
 
-            for num in range(3, len(colors)//3):
-                progress = num
+            #Add pixels until all the new data has been added
+            num = 3
+            while color_index < len(colors):
+                progress = color_index
                 #If pixel is tranparent write new color data
                 if pixels[num][3] == 0:
                     new_pixel = []
@@ -245,6 +248,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
                 #If pixel is not transparent append the pixel from original image
                 else:
                     new_im_data.append(pixels[num])
+                num+=1
         else:
             if transparency:
                 color_index = 0
