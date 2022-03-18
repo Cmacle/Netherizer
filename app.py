@@ -52,7 +52,7 @@ class StartPage(tk.Frame):
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        title = tk.Label(self, text="NETHERIZER v.0.7.8", font=controller.title_font)
+        title = tk.Label(self, text="NETHERIZER v.0.9.8", font=controller.title_font)
         title.grid(column=1, row=0, sticky="N", padx=250)
 
         sub_title = tk.Label(self, text="Image Steganography")
@@ -76,6 +76,7 @@ class EncodePage(tk.Frame):
     max_input_size = None
     input_name = None
     input_size = None
+    input_size_string = None
     image_name = None
     bit_depth = "1"
     output_path = None
@@ -129,6 +130,7 @@ class EncodePage(tk.Frame):
             "6",
             "7",
             "8",
+            "0",
         ]
         self.bit_depth.set("1")
         bit_depth_menu = OptionMenu(self, self.bit_depth, *bit_depth_options)
@@ -152,9 +154,9 @@ class EncodePage(tk.Frame):
         input_name_label.grid(column=2, row=3)
 
         #Label for input file size
-        self.input_size = StringVar()
-        self.input_size.set("")
-        input_size_label = tk.Label(self, textvariable=self.input_size, font=("Helvetica", "8"))
+        self.input_size_string = StringVar()
+        self.input_size_string.set("")
+        input_size_label = tk.Label(self, textvariable=self.input_size_string, font=("Helvetica", "8"))
         input_size_label.grid(column=2, row=4)
 
         #Label for output path label
@@ -256,10 +258,12 @@ class EncodePage(tk.Frame):
             filetypes=filetypes
         )
         self.input_name.set(os.path.basename(self.file_path))
-        if self.file_path != "": 
-            self.input_size.set(f'Input File Size: {os.path.getsize(self.file_path)/1000}KB')
+        if self.file_path != "":
+            self.input_size = os.path.getsize(self.file_path)
+            self.input_size_string.set(f'Input File Size: {self.input_size/1000}KB')
         else:
-            self.input_size.set(f'Input File Size: {0}KB')
+            self.input_size = 0
+            self.input_size_string.set(f'Input File Size: {0}KB')
         root.destroy()
 
     def get_output_path(self):
@@ -269,19 +273,27 @@ class EncodePage(tk.Frame):
 
     def update_max_input_size(self, *args):
         if self.image_path:
-            max_input_size_string = f'''\rMax File input size:\r{steg.max_input_size_from_path(self.image_path, int(self.bit_depth.get()))/1000}KB'''
-            self.max_input_size_string.set(max_input_size_string)
+            if self.bit_depth.get() == 0:
+                self.max_input_size = steg.max_size_transparent_from_path(self.image_path, int(self.bit_depth.get()))
+                max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
+                self.max_input_size_string.set(max_input_size_string)
+            else:
+                self.max_input_size = steg.max_input_size_from_path(self.image_path, int(self.bit_depth.get()))
+                max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
+                self.max_input_size_string.set(max_input_size_string)
     
     def encode(self):
         #print(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path)
         if(self.image_path and self.file_path and self.bit_depth.get() and self.output_path):
-            if(steg.state == "Ready"):
-                #Create a new thread for the process
-                thread = Thread(target=steg.encode, args = (self.image_path, self.file_path, 
-                                                            int(self.bit_depth.get()), self.output_path.get()))
-                thread.daemon = True
-                thread.start()
-
+            if steg.state == "Ready":
+                if self.input_size < self.max_input_size:
+                    #Create a new thread for the process
+                    thread = Thread(target=steg.encode, args = (self.image_path, self.file_path, 
+                                                                int(self.bit_depth.get()), self.output_path.get()))
+                    thread.daemon = True
+                    thread.start()
+                else:
+                    steg.logger.log(logging.WARN, "INPUT FILE TOO LARGE")
             else:
                 steg.logger.log(logging.WARN, "PROCESS ONGOING")
 
