@@ -147,11 +147,32 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
                         colors[color_index] = colors[color_index] - 1
                     color_index+=1
             state = "Encoding"
+        elif bit_depth == 8:
+            color_index = 0
+            logger.log(logging.INFO, "Writing File Data to Image")
+            state = "Writing File Data to Image"
+            #Write the bit_depth to the first 3 color values with bit_depth of 1
+            bit_list = bytes_to_bit_list(file_byte_list, start_index=0, end_index=1)
+            for bit in bit_list:
+                #check if there are any bits left to write    
+                color_value_even = colors[color_index]%2==0
+                if bit and color_value_even: 
+                        #if the next bit and last value of the color are different
+                        #edit the color
+                    colors[color_index] = colors[color_index] + 1
+                
+                elif not bit and not color_value_even:
+                    colors[color_index] = colors[color_index] - 1
+                color_index+=1
+            target = len(file_byte_list) - 1
+            for i in range(1, len(file_byte_list)):
+                progress = i
+                colors[color_index] = ord(file_byte_list[i])
+                color_index += 1
         else:
             color_index = 0
-            #out_of_bits = False
             logger.log(logging.INFO, "Writing File Data to Image")
-
+            #Write the bit_depth to the first 3 color values with bit_depth of 1
             bit_list = bytes_to_bit_list(file_byte_list, start_index=0, end_index=1)
             for bit in bit_list:
                 #check if there are any bits left to write                   
@@ -431,15 +452,56 @@ def decode(image_path: str, output_path: str) -> None:
                     bit_list_index += 1
                 file_data.append(int("".join(hold), 2))
             target = 0
+            del(bit_list)
 
-            #Write the data to a file
-            output_location = os.path.join(output_path, file_name)
-            with open(output_location, "wb") as file:
-                logger.log(logging.INFO, "Writing bytes to file:  ")
-                file.write(file_data)
-            logger.log(logging.INFO, "Done")
-            state = "Ready"
+        elif bit_depth == 8:
+            byte_list = bytearray()
+            colors_offset = 0
+            byte_list_index = 0
 
+            #Get enough data to get all file information
+            for i in range(1014):
+                byte_list.append(colors[colors_offset])
+                colors_offset += 1  
+            #Read that data
+
+            #Get the length of the file name from the first 3 bytes
+            file_name_length = bytearray()
+            for i in range(3):
+                file_name_length.append(byte_list[byte_list_index])
+                byte_list_index += 1
+            file_name_length = bytes(file_name_length)
+            file_name_length = int(file_name_length.decode("UTF-8"))
+            logger.log(logging.INFO, f'File Name Length: {file_name_length}')
+
+            #Read the file name
+            file_name = bytearray()
+            for i in range(file_name_length):
+                file_name.append(byte_list[byte_list_index])
+                byte_list_index += 1
+            file_name = bytes(file_name)
+            file_name = file_name.decode("UTF-8")
+            logger.log(logging.INFO, f'File Name: {file_name}')
+
+            #Get the file length from the next 11 bytes
+            file_length = bytearray()
+            for i in range(11):
+                file_length.append(byte_list[byte_list_index])
+                byte_list_index += 1
+            file_length = bytes(file_length)
+            file_length = int(file_length.decode("UTF-8"))
+            logger.log(logging.INFO, f'File Length: {file_length} Bytes')
+
+            #Get the file data from the image
+            file_data = bytearray()
+            #Save how many bytes we have used so far
+            colors_used = 3 + file_name_length + 11
+            state = "Reading File Data"
+            target = file_length
+            for i in range(colors_used, colors_used + file_length):
+                progress = i - colors_used
+                file_data.append(colors[i])
+            target = 0
         else:
             bit_list = bytearray()
             #get the bit list for the first 8112 bits to ensure we have all file information
@@ -515,14 +577,17 @@ def decode(image_path: str, output_path: str) -> None:
             target = 0
             #Delete bit_list
             del(bit_list)
-            #Write the data to a file
-            output_location = os.path.join(output_path, file_name)
-            with open(output_location, "wb") as file:
-                logger.log(logging.INFO, "Writing bytes to file:  ")
-                file.write(file_data)
-            logger.log(logging.INFO, "Done")
 
-            state = "Ready"
+
+        #Write the data to a file
+        output_location = os.path.join(output_path, file_name)
+        with open(output_location, "wb") as file:
+            logger.log(logging.INFO, "Writing bytes to file:  ")
+            file.write(file_data)
+        logger.log(logging.INFO, "Done")
+        state = "Ready"
+
+
     except Exception as err:
         exception_type, exception_object, exception_traceback = sys.exc_info()
         filename = exception_traceback.tb_frame.f_code.co_filename
