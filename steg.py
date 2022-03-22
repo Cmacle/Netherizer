@@ -36,7 +36,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
         
         state = "ENCODING"
 
-        logger.log(logging.INFO, "Encoding")
+        logger.log(logging.INFO, f'Encoding with Bit Depth: {bit_depth}')
         logger.log(logging.INFO, "Processing Input File")
 
         file_byte_list = file_to_byte_list(file_path, bit_depth)
@@ -739,6 +739,8 @@ def num_pixels_transparent(img: Image) -> int:
     """
     pixels = img.getdata()
     num_transparent = 0
+    if len(pixels[0]) < 4:
+        return 0
     for pixel in pixels:
         if pixel[3] == 0:
             num_transparent+=1

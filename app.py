@@ -122,6 +122,7 @@ class EncodePage(tk.Frame):
 
         self.bit_depth = StringVar()
         bit_depth_options = [
+            "Auto",
             "1",
             "2",
             "3",
@@ -130,9 +131,9 @@ class EncodePage(tk.Frame):
             "6",
             "7",
             "8",
-            "0",
+            "Transparent",
         ]
-        self.bit_depth.set("1")
+        self.bit_depth.set("Auto")
         bit_depth_menu = OptionMenu(self, self.bit_depth, *bit_depth_options)
         bit_depth_menu.grid(column=1, row=2, padx=20)
         CreateToolTip(bit_depth_menu, text='Choose how many bits of each pixel value\n'
@@ -241,9 +242,7 @@ class EncodePage(tk.Frame):
         )
         self.image_name.set(os.path.basename(self.image_path))
         if self.image_path:
-            max_input_size_string = f'''\rMax File input size:\r{steg.max_input_size_from_path(self.image_path, int(self.bit_depth.get()))/1000}KB'''
-            self.max_input_size_string.set(max_input_size_string)
-            self.max_input_size = int(steg.max_input_size_from_path(self.image_path, int(self.bit_depth.get()))/1000)
+            self.update_max_input_size()
         root.destroy()
     
     def choose_input_file(self):
@@ -273,8 +272,12 @@ class EncodePage(tk.Frame):
 
     def update_max_input_size(self, *args):
         if self.image_path:
-            if self.bit_depth.get() == 0:
-                self.max_input_size = steg.max_size_transparent_from_path(self.image_path, int(self.bit_depth.get()))
+            if self.bit_depth.get() == "Transparent":
+                self.max_input_size = steg.max_input_size_from_path(self.image_path, 0)
+                max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
+                self.max_input_size_string.set(max_input_size_string)
+            elif self.bit_depth.get() == "Auto":
+                self.max_input_size = steg.max_input_size_from_path(self.image_path, 8)
                 max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
                 self.max_input_size_string.set(max_input_size_string)
             else:
@@ -283,9 +286,19 @@ class EncodePage(tk.Frame):
                 self.max_input_size_string.set(max_input_size_string)
     
     def encode(self):
-        #print(self.image_path, self.file_path, int(self.bit_depth.get()), self.output_path)
+        if self.bit_depth.get() == "Transparent":
+            self.bit_depth = "0"
         if(self.image_path and self.file_path and self.bit_depth.get() and self.output_path):
             if steg.state == "Ready":
+                
+                #If bit_depth is set to auto check what the lowest possible value is
+                if self.bit_depth.get() == "Auto":
+                    #Check the lowest bit_depth starting with transparent
+                    for i in range(0,9):
+                        if self.input_size < steg.max_input_size_from_path(self.image_path, i):
+                            self.bit_depth.set(f'{i}')
+                            break
+
                 if self.input_size < self.max_input_size:
                     #Create a new thread for the process
                     thread = Thread(target=steg.encode, args = (self.image_path, self.file_path, 
