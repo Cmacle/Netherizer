@@ -3,7 +3,7 @@ import os
 import queue
 import tkinter as tk
 from threading import Thread
-from tkinter import LEFT, SOLID, SW, Label, OptionMenu, StringVar, Toplevel, font as tkfont
+from tkinter import LEFT, SOLID, SW, Label, OptionMenu, StringVar, TclError, Toplevel, font as tkfont
 from tkinter import filedialog
 from tkinter.scrolledtext import ScrolledText
 import steg
@@ -25,6 +25,10 @@ class App(tk.Tk):
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(1, weight=1)
         self.title("Netherizer")
+        try:
+            self.iconbitmap("Icon.ico")
+        except TclError:
+            pass
 
         self.frames = {}
         for F in (StartPage, EncodePage, DecodePage):
@@ -52,7 +56,7 @@ class StartPage(tk.Frame):
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        title = tk.Label(self, text="NETHERIZER v.0.9.8", font=controller.title_font)
+        title = tk.Label(self, text="NETHERIZER v 1.0", font=controller.title_font)
         title.grid(column=1, row=0, sticky="N", padx=250)
 
         sub_title = tk.Label(self, text="Image Steganography")
@@ -273,15 +277,15 @@ class EncodePage(tk.Frame):
     def update_max_input_size(self, *args):
         if self.image_path:
             if self.bit_depth.get() == "Transparent":
-                self.max_input_size = steg.max_input_size_from_path(self.image_path, 0)
+                self.max_input_size = steg.max_input_size(self.image_path, 0)
                 max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
                 self.max_input_size_string.set(max_input_size_string)
             elif self.bit_depth.get() == "Auto":
-                self.max_input_size = steg.max_input_size_from_path(self.image_path, 8)
+                self.max_input_size = steg.max_input_size(self.image_path, 8)
                 max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
                 self.max_input_size_string.set(max_input_size_string)
             else:
-                self.max_input_size = steg.max_input_size_from_path(self.image_path, int(self.bit_depth.get()))
+                self.max_input_size = steg.max_input_size(self.image_path, int(self.bit_depth.get()))
                 max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
                 self.max_input_size_string.set(max_input_size_string)
     
@@ -295,7 +299,7 @@ class EncodePage(tk.Frame):
                 if self.bit_depth.get() == "Auto":
                     #Check the lowest bit_depth starting with transparent
                     for i in range(0,9):
-                        if self.input_size < steg.max_input_size_from_path(self.image_path, i):
+                        if self.input_size < steg.max_input_size(self.image_path, i):
                             self.bit_depth.set(f'{i}')
                             break
 

@@ -16,12 +16,16 @@ target = 0
 logger = logging.getLogger(__name__)
 
 def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) -> None:
-    """
-    This will take the input image and file to be hidden within
-    the input image. It will then overwrite LSB pixel data in
-    ascending order according to the bit_depth. With lower values
-    having less impact on the image and having less data capacity.
-    Outputs the encoded image to the output_path.
+    """This will take the input image and file to be hidden within
+    the input image.
+
+    Args:
+        image_path (str): The path to the image that will be encoded
+        file_path (str): The path to the file that will be encoded
+        bit_depth (int): How many bits of each RGB value will be overwritten
+        lower values will make less impact on the image but have less data
+        capacity. bit_depth 0 only writes to tranparent pixels.
+        output_path (str): The output path of the resulting encoded image
     """
     #CHUNK_SIZE will control how large each chunk of data from the input
     #file will be while encoded, the value will be made made divisible by 8
@@ -33,7 +37,8 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
     print(f'BitDepth = {bit_depth}')
     write_to_transparent = False
     try:
-        
+
+        #Set the state so that a new process cannot be started
         state = "ENCODING"
 
         logger.log(logging.INFO, f'Encoding with Bit Depth: {bit_depth}')
@@ -125,9 +130,10 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
         num_chunks = math.ceil(len(file_byte_list)/chunk_size)
 
         if bit_depth == 1:
-            #For every chunk
+            #color index is used to retain place in colors regardless of chunk
             color_index = 0
             target = num_chunks
+            #For every chunk
             for i in range(num_chunks):
                 state = f'Writing Chunk {i} of {num_chunks}'
                 progress = i
@@ -300,9 +306,9 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
         #Add the remaining unaltered pixels
         logger.log(logging.INFO, "Appending unaltered pixels")
         state = "Appending unaltered pixels"
-        target = len(pixels) - len(new_im_data)
+        target = len(pixels)
         for i in range(len(new_im_data), len(pixels)):
-            progress = i - len(new_im_data)
+            progress = i
             new_im_data.append(pixels[i])
         del(pixels)
         del(colors)
@@ -325,9 +331,12 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
         state = "Ready"
 
 def decode(image_path: str, output_path: str) -> None:
-    """
-    This will take an image that has been encoded previously and
-    output the file that was encoded into the image to the output_path.
+    """Takes an image that has previously been encoded and outputs
+    the encoded file to the output_path.
+
+    Args:
+        image_path (str): Path to the image to be decoded
+        output_path (str): Path to the directory where the file will be output
     """
     try:
         global state
@@ -560,7 +569,7 @@ def decode(image_path: str, output_path: str) -> None:
                 for x in range(bit_depth):
                     bit_list.append(int(color_bit_list[(x+1)*-1]))
             target = 0
-            #Delete Colors
+            #Delete Colors as they are no longer needed
             del(colors)
             #Get the file information
             file_data = bytearray()
@@ -608,16 +617,31 @@ def output_image(image_data: List[Tuple[int, ...]],
     """
     Takes a list of pixel data, creates a new image using 
     image_mode and image_size then outputs to the output path
+
+    Args:
+        image_data (List[Tuple[int, ...]]): The RGB data of the image
+        image_mode (str): The mode of the new image
+        image_size (Tuple[int,int]): The size of the new image
+        output_path (str): The output path of the new image
     """
     new_image = Image.new(image_mode, image_size)
     new_image.putdata(image_data)
     new_image.save(output_path, format="PNG",)
 
 def color_to_bit_list(color: int) -> List[str]:
-    """
-    Takes a color value as an int and converts it to a
+    """Takes a color value as an int and converts it to a
     list of strings 8 characters long of its binary
     string representation.
+
+    Args:
+        color (int): The color value as an int
+
+    Raises:
+        ValueError: If the color value is outside of range 0-255
+
+    Returns:
+        List[str]: Returns a list of strings 8 characters long containing
+        the binary representation of the color
     """
     if color > 255 or color < 0:
         raise ValueError("Input out of range: 0-255")
@@ -627,21 +651,17 @@ def color_to_bit_list(color: int) -> List[str]:
     color_bit_list = list(color_bit_list)
     return color_bit_list
 
-def max_input_size(width: int, height: int, bit_depth: int, file_name_length: int = None) -> int:
-    """
-    Calculates the maximum input file size based on the provided
-    width, height and bit_depth. If file_name_length is provided
-    it will be subtracted from the total.
-    """
-    max_size = (width*height*3*bit_depth)//8
-    if file_name_length:
-        max_size -= file_name_length
-    return max_size
-
-def max_input_size_from_path(path: int, bit_depth: int) -> int:
-    """
-    Calculates the maximum input file size from the provided image path
+def max_input_size(path: str, bit_depth: int) -> int:
+    """Calculates the maximum input file size from the provided image path
     as well as the bit_depth.
+
+    Args:
+        path (str): The path to the image.
+        bit_depth (int): The bit_depth value to calculate max
+        size for.
+
+    Returns:
+        int: The maximum input file size in bytes
     """
     image = Image.open(path)
     width, height = image.size
@@ -653,16 +673,26 @@ def max_input_size_from_path(path: int, bit_depth: int) -> int:
     return max_size
 
 def bit_list_to_bytes(bit_list: List[str]) -> bytes:
-    """
-    Takes a list of bit values as strings ("0" or "1") and returns
+    """Takes a list of bit values as strings ("0" or "1") and returns
     bytes. len(bit_list) must be divisible by 8
+
+    Args:
+        bit_list (List[str]): A list of bit values as strings("0" or "1")
+
+    Returns:
+        bytes: bit_list converted to bytes
     """
     bit_string = "".join(bit_list)
     return int(bit_string, 2).to_bytes(len(bit_string) // 8, byteorder='big')
             
 def int_to_byte(x: int) -> str:
-    """
-    Takes an int and returns a utf-8 encoded str of the int
+    """Takes an int and returns a UTF-8 encoded str of the int
+
+    Args:
+        x (int): integer value
+
+    Returns:
+        str: UTF-8 encoded string
     """
     return str(x).encode()
 
@@ -670,10 +700,18 @@ def bytes_to_bit_list(byte_list: List[str],
                     start_index: Optional[int] = None, 
                     end_index: Optional[int] = None
                     ) -> List[int]:
-    """
-    This function takes a list of bytes and returns a list of ints with
+    """This function takes a list of bytes and returns a list of ints with
     values of 1 or 0. If there is an end_index given it will only
-    return the bits for the bytes within the range provided. 
+    return the bits for the bytes within the range provided.
+
+    Args:
+        byte_list (List[str]): A list of byte values
+        start_index (Optional[int], optional): Where to start in byte_list. Defaults to None.
+        end_index (Optional[int], optional): Where to stop in byte_list
+        if longer than len(byte_list) is changed to len(byte_list). Defaults to None.
+
+    Returns:
+        List[int]: A list of ints with value 0 or 1
     """
     bit_list = []
     if end_index:
@@ -704,8 +742,15 @@ def bytes_to_bit_list(byte_list: List[str],
     return bit_list
 
 def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
-    """
-    This will take a file and return a list of UTF-8 encoded strings. 
+    """This will take a file and return a list of UTF-8 encoded strings and file
+    bytes.
+
+    Args:
+        file_path (str): Path to the file
+        bit_depth (int): The bit_depth to append to the beginning
+
+    Returns:
+        List[str]: A list of UTF-8 encoded strings and bytes
     """
     byte_list = []   #Declare the Byte list that will be returned
     byte_list.append(int_to_byte(bit_depth))   #Appends the bit depth to the list as a byte
@@ -733,9 +778,14 @@ def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
     return byte_list
 
 def num_pixels_transparent(img: Image) -> int:
-    """
-    Takes an image and returns the number of transparent pixels
+    """Takes an image and returns the number of transparent pixels
     contained within it.
+
+    Args:
+        img (Image): The Image
+
+    Returns:
+        int: The number of transparent pixels
     """
     pixels = img.getdata()
     num_transparent = 0
