@@ -15,6 +15,8 @@ target = 0
 
 logger = logging.getLogger(__name__)
 
+Image.MAX_IMAGE_PIXELS = None
+
 def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) -> None:
     """This will take the input image and file to be hidden within
     the input image.
@@ -39,7 +41,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
     try:
 
         #Set the state so that a new process cannot be started
-        state = "ENCODING"
+        state = "Processing Input File"
 
         logger.log(logging.INFO, f'Encoding with Bit Depth: {bit_depth}')
         logger.log(logging.INFO, "Processing Input File")
@@ -157,7 +159,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
             color_index = 0
             logger.log(logging.INFO, "Writing File Data to Image")
             state = "Writing File Data to Image"
-            #Write the bit_depth to the first 3 color values with bit_depth of 1
+            #Write the bit_depth to the first 8 color values with bit_depth of 1
             bit_list = bytes_to_bit_list(file_byte_list, start_index=0, end_index=1)
             for bit in bit_list:
                 #check if there are any bits left to write    
@@ -173,7 +175,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
             target = len(file_byte_list) - 1
             for i in range(1, len(file_byte_list)):
                 progress = i
-                colors[color_index] = ord(file_byte_list[i])
+                colors[color_index] = file_byte_list[i]
                 color_index += 1
         else:
             color_index = 0
@@ -238,6 +240,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
                 hold = "".join(bit_list_strings)
                 colors[color_index] = int(hold , 2)
                 color_index+=1
+        del(file_byte_list)
 
         #Reconstruct the pixels from the colors
         logger.log(logging.INFO, "Reconstructing Pixels")
@@ -318,7 +321,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
         logger.log(logging.INFO, "Done")
         state = "Ready"
 
-    except Exception as err:
+    except None as err:
         target = 0
         exception_type, exception_object, exception_traceback = sys.exc_info()
         filename = exception_traceback.tb_frame.f_code.co_filename
@@ -373,7 +376,6 @@ def decode(image_path: str, output_path: str) -> None:
                     bit_depth.append("1")
         bit_depth = bit_list_to_bytes(bit_depth)
         bit_depth = int(bit_depth.decode('UTF-8'))
-        print(len(colors))
         logger.log(logging.INFO, f'Bit Depth: {bit_depth}')
 
         #If bit_depth is 0 we will only read from tranparent pixels
@@ -723,22 +725,29 @@ def bytes_to_bit_list(byte_list: List[str],
             end_index = len(byte_list)
         #Now we will iterate over the selected elements and return them
         for i in range(start_index,end_index):
-
             byte = byte_list[i]
+            byte = str(bin(byte))[2:]
+            byte = byte.zfill(8)
+            byte = list(byte)
             hold = []
             for i in range(8):
-                    next_bit = (byte[0] >> i) & 1
-                    hold.insert(0, bool(next_bit))
+                    next_bit = byte[i]
+                    hold.append(next_bit)
             for bit in hold:
-                bit_list.append(bit)
+                bit_list.append(int(bit))
     else:
         for byte in byte_list:
+            byte = str(bin(byte))[2:]
+            print(byte)
+            byte = byte.zfill(8)
+            print(byte)
+            byte = list(byte)
             hold = []
             for i in range(8):
-                    next_bit = (byte[0] >> i) & 1
-                    hold.insert(0, next_bit)
+                    next_bit = byte[i]
+                    hold.append(next_bit)
             for bit in hold:
-                bit_list.append(bit)
+                bit_list.append(int(bit))
     return bit_list
 
 def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
@@ -752,29 +761,36 @@ def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
     Returns:
         List[str]: A list of UTF-8 encoded strings and bytes
     """
-    byte_list = []   #Declare the Byte list that will be returned
-    byte_list.append(int_to_byte(bit_depth))   #Appends the bit depth to the list as a byte
+    global target
+    global progress
+
+    byte_list = bytearray()   #Declare the Byte list that will be returned
+    byte_list.append(ord(str(bit_depth)))   #Appends the bit depth to the list as a byte
     file_name = os.path.basename(file_path)   #Get the file name from the path
     file_name_length = len(file_name) #Get the length of the file name
     file_name_length = str(file_name_length).rjust(3, "0") #Change to a string and pad to 3 characters
     for character in file_name_length:
-        byte_list.append(character.encode())
+        byte_list.append(ord(character))
 
     for letter in file_name: #Append the letters of the name to the list
-        byte_list.append(letter.encode())
+        byte_list.append(ord(letter))
 
     file_size = os.path.getsize(file_path) #Get the file size
     #Turn the file size into a string and pad it to 11 characters
     file_size = str(file_size).rjust(11, "0")
     for letter in file_size: #Append the list
-        byte_list.append(letter.encode())
- 
+        byte_list.append(ord(letter))
+    
+    target = os.path.getsize(file_path)
+    progress = 0
     with open(file_path, "rb") as file:
         while True:
             byte = file.read(1)
+            progress += 1
             if not byte:
                 break
-            byte_list.append(byte)
+            byte_list.append(int.from_bytes(byte, "big"))
+    target = 0
     return byte_list
 
 def num_pixels_transparent(img: Image) -> int:

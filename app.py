@@ -215,7 +215,7 @@ class EncodePage(tk.Frame):
         #Every 1 second we will output the progress on the current step if applicable
         if self.counter >= 10:
             try:
-                steg.logger.log(logging.INFO, f'{steg.state}: {int(steg.progress/steg.target*100)}%')
+                steg.logger.log(logging.INFO, f'{steg.state}: {int(steg.progress/steg.target*100)}% ({steg.progress}/{steg.target})')
                 self.counter = 0
             except ZeroDivisionError:
                 pass

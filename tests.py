@@ -17,10 +17,6 @@ class StegTests(unittest.TestCase):
                         ["1","1","1","1","1","1","1","1"])
         self.assertRaises(ValueError, steg.color_to_bit_list, 256)
         self.assertRaises(ValueError, steg.color_to_bit_list, -1)
-
-    def test_max_input_size(self):
-        self.assertEqual(steg.max_input_size(100,100,1), 3750)
-        self.assertEqual(steg.max_input_size(59,73,4), 6460)
     
     def test_bit_list_to_bytes(self):
         self.assertEqual(steg.bit_list_to_bytes(["0","0","0","0","0","0","0","0"]),
@@ -33,9 +29,9 @@ class StegTests(unittest.TestCase):
         self.assertEqual(steg.int_to_byte(153), b'153')
 
     def test_bytes_to_bit_list(self):
-        self.assertEqual(steg.bytes_to_bit_list([b'A']),
+        self.assertEqual(steg.bytes_to_bit_list([65]),
         [0,1,0,0,0,0,0,1])
-        self.assertEqual(steg.bytes_to_bit_list([b'\x00']),
+        self.assertEqual(steg.bytes_to_bit_list([0]),
         [0,0,0,0,0,0,0,0])
 
 class EncodeDecodeTest(unittest.TestCase):
@@ -57,7 +53,7 @@ class EncodeDecodeTest(unittest.TestCase):
             os.mkdir(self.temp_directory_output)
         except OSError:
             pass
-        temp_img = Image.new("RGB", (100, 100), (255, 255, 255))
+        temp_img = Image.new("RGBA", (100, 100), (255, 255, 255, 0))
         temp_img.save(os.path.join(self.temp_directory, "temp_png.png"), "PNG")
 
         with open(os.path.join(self.temp_directory, "temp_txt.txt"), "w") as temp_file:
@@ -70,7 +66,7 @@ class EncodeDecodeTest(unittest.TestCase):
         output_image_path = os.path.join(self.temp_directory_output, "temp_output.png")
         output_file_path = os.path.join(self.temp_directory_output, "temp_txt.txt")
         #Run the test for each bit_depth value
-        for i in range(1,9):
+        for i in range(0,9):
             #Create the encoded image
             steg.encode(image_path, file_path, i, output_image_path)
             #Decode that image
@@ -88,8 +84,5 @@ class EncodeDecodeTest(unittest.TestCase):
         shutil.rmtree(self.temp_directory)
 
         
-
-
-
 if __name__ == '__main__':
     unittest.main()
