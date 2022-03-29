@@ -39,273 +39,59 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
     print(f'BitDepth = {bit_depth}')
     write_to_transparent = False
     try:
-
         #Set the state so that a new process cannot be started
         state = "Processing Input File"
-
         logger.log(logging.INFO, f'Encoding with Bit Depth: {bit_depth}')
         logger.log(logging.INFO, "Processing Input File")
-
+        #Turn the input file into a bytearray that can be encoded
         file_byte_list = file_to_byte_list(file_path, bit_depth)
         #Check if encoder is set to tranparent only
         if bit_depth == 0:
             write_to_transparent = True
             bit_depth = 8
-        print(file_byte_list[0])
-
         logger.log(logging.INFO, "Opening Image")
-
         image = Image.open(image_path)
         #Get the pixel data from the image
         logger.log(logging.INFO, "Extracting Pixel Data")
-
         pixels = image.getdata()
-        width, height = image.size
         image_mode = image.mode
         image_size = image.size
         #Delete the image as it is no longer needed
         del(image)
         logger.log(logging.DEBUG, f'Num Pixels: {len(pixels)}')
-
-        new_im_data = []
-
-        byte_list_len = len(file_byte_list)
-
-        #Check if the image is a png and if so create a list for transparency values
-        #this is so we can add those values back later
+        #Check if the image has a transparency value
         transparency = False
-
         if len(pixels[0]) > 3:
                 transparency = True
-                transparency_values = []
-        colors = bytearray()
-        #Turn the pixels into a list of color values 
-        #and a list for transparency values if a png
-
         logger.log(logging.INFO, "Processing Pixel Data")
         state = "Processing Pixel Data"
-
-        target = math.ceil(byte_list_len * 8 / 3 / bit_depth + 56)
-        #If writing to transparent only get the color values from transparent pixels
-        if write_to_transparent:
-            progress = 0
-            #Append the colors of the first 3 pixels regardless of transparency
-            for x in range(3):
-                for i in range(3):
-                    colors.append(pixels[x][i])
-                transparency_values.append(pixels[x][3])
-
-            for x in range(3, len(pixels)):
-                #Check if any more colors are needed
-                if progress*8 > byte_list_len * 8 / 3 + 56:
-                        break
-                #check if the pixel is transparent
-                elif pixels[x][3] == 0:
-                    progress += 1
-                    #if the pixel is transparent append the colors
-                    for i in range(3):
-                        colors.append(pixels[x][i])
-                transparency_values.append(pixels[x][3])
-        else:
-            if transparency:
-                for x, pixel in enumerate(pixels):
-                    progress = x
-                    if x*bit_depth > byte_list_len * 8 / 3 + 56:
-                        color_stop = x
-                        break
-                    for i in range(3):
-                        colors.append(pixel[i])
-                    transparency_values.append(pixel[3])
-            else:
-                for x, pixel in enumerate(pixels):
-                    progress = x
-                    if x*bit_depth > byte_list_len * 8 / 3 + 56:
-                        color_stop = x
-                        break
-                    for color in pixel:
-                        colors.append(color)
-        print(len(colors))
-        target = 0
-        #Encode the file into chunks to reduce memory usage
-        #Make chunk_size divisible by 8 and bit_depth
-        chunk_size = (CHUNK_SIZE//8)* 8 * bit_depth
-        num_chunks = math.ceil(len(file_byte_list)/chunk_size)
-
-        if bit_depth == 1:
-            #color index is used to retain place in colors regardless of chunk
-            color_index = 0
-            target = num_chunks
-            #For every chunk
-            for i in range(num_chunks):
-                state = f'Writing Chunk {i} of {num_chunks}'
-                progress = i
-                bit_list = bytes_to_bit_list(file_byte_list, 
-                                            start_index=i*chunk_size, 
-                                            end_index=i*chunk_size+chunk_size)
-                #Edit Pixel Data until all file bits have been written
-                for bit in bit_list:                  
-                    color_value_even = colors[color_index]%2==0
-
-                    if bit and color_value_even: 
-                        #if the next bit and last value of the color are different
-                        #edit the color
-                        colors[color_index] = colors[color_index] + 1
-                
-                    elif not bit and not color_value_even:
-                        colors[color_index] = colors[color_index] - 1
-                    color_index+=1
-            state = "Encoding"
-        elif bit_depth == 8:
-            color_index = 0
-            logger.log(logging.INFO, "Writing File Data to Image")
-            state = "Writing File Data to Image"
-            #Write the bit_depth to the first 8 color values with bit_depth of 1
-            bit_list = bytes_to_bit_list(file_byte_list, start_index=0, end_index=1)
-            for bit in bit_list:
-                #check if there are any bits left to write    
-                color_value_even = colors[color_index]%2==0
-                if bit and color_value_even: 
-                        #if the next bit and last value of the color are different
-                        #edit the color
-                    colors[color_index] = colors[color_index] + 1
-                
-                elif not bit and not color_value_even:
-                    colors[color_index] = colors[color_index] - 1
-                color_index+=1
-            target = len(file_byte_list) - 1
-            for i in range(1, len(file_byte_list)):
-                progress = i
-                colors[color_index] = file_byte_list[i]
-                color_index += 1
-        else:
-            color_index = 0
-            logger.log(logging.INFO, "Writing File Data to Image")
-            #Write the bit_depth to the first 3 color values with bit_depth of 1
-            bit_list = bytes_to_bit_list(file_byte_list, start_index=0, end_index=1)
-            for bit in bit_list:
-                #check if there are any bits left to write                   
-                color_value_even = colors[color_index]%2==0
-                if bit and color_value_even: 
-                        #if the next bit and last value of the color are different
-                        #edit the color
-                    colors[color_index] = colors[color_index] + 1
-                
-                elif not bit and not color_value_even:
-                    colors[color_index] = colors[color_index] - 1
-                color_index+=1
-            #Now handle the rest of the pixels and data with the new method
-            target = num_chunks
-            for i in range(num_chunks):
-                state = f'Writing Chunk {i} of {num_chunks}'
-                progress = i
-                bit_list = bytes_to_bit_list(file_byte_list, 
-                                            start_index=i*chunk_size+1, 
-                                            end_index=i*chunk_size+chunk_size+1)
-                bit_list_len = len(bit_list)
-                bit_list_index = 0
-                for x in range(bit_list_len//bit_depth):
-
-                    #Get the color as a string in binary
-                    color_bit_list = format(colors[color_index], "b")
-                    color_bit_list = color_bit_list.rjust(8,"0") #Pad string to 8 bits
-                    color_bit_list = list(color_bit_list) #Make it a list
-                    #rewrite bits in values equal to bitdepth starting with LSB
-                    for x in range(bit_depth):
-                        next_bit = bit_list[bit_list_index]
-                        bit_list_index+=1
-                        color_bit_list[(x+1)*-1] = int(next_bit)
-                    #Make a list of th evalues as strings
-                    bit_list_strings = [str(int) for int in color_bit_list]
-                    #Join the new bit_list_strings can cast to int
-                    hold = "".join(bit_list_strings)
-                    colors[color_index] = int(hold , 2)
-                    color_index+=1
-            state = "Encoding"
-            #If the last chunk had a length that was not divisible by the
-            #bit_depth we will pull one final color and append those bits
-            remaining_bits = bit_list_len % bit_depth
-            if remaining_bits:
-                #Get the color as a string in binary
-                color_bit_list = format(colors[color_index], "b")
-                color_bit_list = color_bit_list.rjust(8,"0") #Pad string to 8 bits
-                color_bit_list = list(color_bit_list) #Make it a list
-                #rewrite bits in values equal to bitdepth starting with LSB
-                for x in range(remaining_bits):
-                    next_bit = bit_list[bit_list_index]
-                    bit_list_index+=1
-                    color_bit_list[(x+1)*-1] = int(next_bit)
-                #Make a list of th evalues as strings
-                bit_list_strings = [str(int) for int in color_bit_list]
-                #Join the new bit_list_strings can cast to int
-                hold = "".join(bit_list_strings)
-                colors[color_index] = int(hold , 2)
-                color_index+=1
+        #Get the length of the byte_list so pixels_to_colors
+        #will only get as many colors as necessary to save memory
+        byte_list_len = len(file_byte_list)
+        #Get a bytearray of color values from the pixels for writing the file data
+        colors, transparency_values = pixels_to_colors(pixels, 
+                                                    bit_depth, 
+                                                    byte_list_len, 
+                                                    write_to_transparent, 
+                                                    transparency)
+        #Write the file data to the colors
+        logger.log(logging.INFO, "Writing File Data to Image")
+        state = "Writing File Data to Image"
+        write_file_to_colors(bit_depth, 
+                            colors, 
+                            file_byte_list, 
+                            CHUNK_SIZE)
         del(file_byte_list)
 
         #Reconstruct the pixels from the colors
         logger.log(logging.INFO, "Reconstructing Pixels")
         state = "Reconstructing Pixels"
-        target = len(colors)//3
-        if write_to_transparent:
-            color_index = 0
-            #First append the first 3 pixels regardless of transparency
-            for num in range(3):
-                new_pixel = []
-                #Append 3 Color Values
-                for i in range(3):
-                    new_pixel.append(colors[color_index])
-                    color_index+=1
-                #Append the transparency Value
-                new_pixel.append(transparency_values[num])
-                #Append to new_im_data as a tuple
-                new_im_data.append(tuple(new_pixel))
-
-            #Add pixels until all the new data has been added
-            num = 3
-            while color_index < len(colors):
-                progress = color_index
-                #If pixel is tranparent write new color data
-                if pixels[num][3] == 0:
-                    new_pixel = []
-                    #Append 3 Color Values
-                    for i in range(3):
-                        new_pixel.append(colors[color_index])
-                        color_index+=1
-                    #Append the transparency Value
-                    new_pixel.append(transparency_values[num])
-                    #Append to new_im_data as a tuple
-                    new_im_data.append(tuple(new_pixel))    
-                #If pixel is not transparent append the pixel from original image
-                else:
-                    new_im_data.append(pixels[num])
-                num+=1
-        else:
-            if transparency:
-                color_index = 0
-                for num in range(len(colors)//3):
-                    progress = num
-                    new_pixel = []
-                    #Append 3 Color Values
-                    for i in range(3):
-                        new_pixel.append(colors[color_index])
-                        color_index+=1
-                    #Append the transparency Value
-                    new_pixel.append(transparency_values[num])
-                    #Append to new_im_data as a tuple
-                    new_im_data.append(tuple(new_pixel))
-            #Same but without the transparency append, split up for performance       
-            else:
-                color_index = 0
-                for num in range(len(colors)//3):
-                    progress = num
-                    new_pixel = []
-                    #Append 3 Color Values
-                    for i in range(3):
-                        new_pixel.append(colors[color_index])
-                        color_index+=1
-                    new_im_data.append(tuple(new_pixel))
-        target = 0
-
+        new_im_data = colors_to_pixels(colors, 
+                                        pixels, 
+                                        transparency_values, 
+                                        write_to_transparent, 
+                                        transparency)
+        del(colors)
         #Add the remaining unaltered pixels
         logger.log(logging.INFO, "Appending unaltered pixels")
         state = "Appending unaltered pixels"
@@ -314,14 +100,13 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
             progress = i
             new_im_data.append(pixels[i])
         del(pixels)
-        del(colors)
         target = 0
         logger.log(logging.INFO, "Writing Output File")
         output_image(new_im_data, image_mode, image_size, output_path)
         logger.log(logging.INFO, "Done")
         state = "Ready"
 
-    except None as err:
+    except Exception as err:
         target = 0
         exception_type, exception_object, exception_traceback = sys.exc_info()
         filename = exception_traceback.tb_frame.f_code.co_filename
@@ -361,11 +146,8 @@ def decode(image_path: str, output_path: str) -> None:
         #Get the color data from the first 3 pixels to retrieve the bit_depth
         for x in range(3):
             for i in range(3):
-                colors.append(pixels[x][i])
-        
-        print(colors)
+                colors.append(pixels[x][i]) 
         bit_depth = []
-
         #Get the Bit Depth from the first 8 color values
         for i in range(8):
             color = colors.pop(0)
@@ -444,11 +226,14 @@ def decode(image_path: str, output_path: str) -> None:
             bit_list = bytearray()
             hold = file_length*8
             logger.log(logging.INFO, f'Getting File Information')
-
+            state = "Getting File Information"
+            target = file_length*8
             for i in range(file_length*8):
+                progress = i
                 color = colors[i+colors_offset]
                 bit_list.append(color%2)
-
+            target = 0
+            
             logger.log(logging.INFO, f'Converting File Data')
             state = "Converting File Data"
             file_data = bytearray()
@@ -812,6 +597,233 @@ def num_pixels_transparent(img: Image) -> int:
             num_transparent+=1
     return num_transparent
 
+def pixels_to_colors(pixels, bit_depth, byte_list_len, write_to_transparent, transparency):
+    global target
+    global progress
+
+    colors = bytearray()
+    transparency_values = bytearray()
+    target = math.ceil(byte_list_len * 8 / 3 / bit_depth + 56)
+    #If writing to transparent only get the color values from transparent pixels
+    if write_to_transparent:
+        progress = 0
+        #Append the colors of the first 3 pixels regardless of transparency
+        for x in range(3):
+            for i in range(3):
+                colors.append(pixels[x][i])
+            transparency_values.append(pixels[x][3])
+
+        for x in range(3, len(pixels)):
+            #Check if any more colors are needed
+            if progress*8 > byte_list_len * 8 / 3 + 56:
+                    break
+            #check if the pixel is transparent
+            elif pixels[x][3] == 0:
+                progress += 1
+                #if the pixel is transparent append the colors
+                for i in range(3):
+                    colors.append(pixels[x][i])
+            transparency_values.append(pixels[x][3])
+    else:
+        if transparency:
+            for x, pixel in enumerate(pixels):
+                progress = x
+                if x*bit_depth > byte_list_len * 8 / 3 + 56:
+                    color_stop = x
+                    break
+                for i in range(3):
+                    colors.append(pixel[i])
+                transparency_values.append(pixel[3])
+        else:
+            for x, pixel in enumerate(pixels):
+                progress = x
+                if x*bit_depth > byte_list_len * 8 / 3 + 56:
+                    color_stop = x
+                    break
+                for color in pixel:
+                    colors.append(color)
+    target = 0
+    return colors, transparency_values
+
+def write_file_to_colors(bit_depth, colors, file_byte_list, CHUNK_SIZE):
+    global target
+    global progress
+
+    chunk_size = (CHUNK_SIZE//8)* 8 * bit_depth
+    num_chunks = math.ceil(len(file_byte_list)/chunk_size)
+
+    if bit_depth == 1:
+        #color index is used to retain place in colors regardless of chunk
+        color_index = 0
+        target = num_chunks
+        #For every chunk
+        for i in range(num_chunks):
+            progress = i
+            bit_list = bytes_to_bit_list(file_byte_list, 
+                                        start_index=i*chunk_size, 
+                                        end_index=i*chunk_size+chunk_size)
+            #Edit Pixel Data until all file bits have been written
+            for bit in bit_list:                  
+                color_value_even = colors[color_index]%2==0
+
+                if bit and color_value_even: 
+                    #if the next bit and last value of the color are different
+                    #edit the color
+                    colors[color_index] = colors[color_index] + 1
+            
+                elif not bit and not color_value_even:
+                    colors[color_index] = colors[color_index] - 1
+                color_index+=1
+    elif bit_depth == 8:
+        color_index = 0
+        #Write the bit_depth to the first 8 color values with bit_depth of 1
+        bit_list = bytes_to_bit_list(file_byte_list, start_index=0, end_index=1)
+        for bit in bit_list:
+            #check if there are any bits left to write    
+            color_value_even = colors[color_index]%2==0
+            if bit and color_value_even: 
+                    #if the next bit and last value of the color are different
+                    #edit the color
+                colors[color_index] = colors[color_index] + 1
+            
+            elif not bit and not color_value_even:
+                colors[color_index] = colors[color_index] - 1
+            color_index+=1
+        target = len(file_byte_list) - 1
+        for i in range(1, len(file_byte_list)):
+            progress = i
+            colors[color_index] = file_byte_list[i]
+            color_index += 1
+    else:
+        color_index = 0
+        #Write the bit_depth to the first 3 color values with bit_depth of 1
+        bit_list = bytes_to_bit_list(file_byte_list, start_index=0, end_index=1)
+        for bit in bit_list:
+            #check if there are any bits left to write                   
+            color_value_even = colors[color_index]%2==0
+            if bit and color_value_even: 
+                    #if the next bit and last value of the color are different
+                    #edit the color
+                colors[color_index] = colors[color_index] + 1
+            
+            elif not bit and not color_value_even:
+                colors[color_index] = colors[color_index] - 1
+            color_index+=1
+        #Now handle the rest of the pixels and data with the new method
+        target = num_chunks
+        for i in range(num_chunks):
+            progress = i
+            bit_list = bytes_to_bit_list(file_byte_list, 
+                                        start_index=i*chunk_size+1, 
+                                        end_index=i*chunk_size+chunk_size+1)
+            bit_list_len = len(bit_list)
+            bit_list_index = 0
+            for x in range(bit_list_len//bit_depth):
+
+                #Get the color as a string in binary
+                color_bit_list = format(colors[color_index], "b")
+                color_bit_list = color_bit_list.rjust(8,"0") #Pad string to 8 bits
+                color_bit_list = list(color_bit_list) #Make it a list
+                #rewrite bits in values equal to bitdepth starting with LSB
+                for x in range(bit_depth):
+                    next_bit = bit_list[bit_list_index]
+                    bit_list_index+=1
+                    color_bit_list[(x+1)*-1] = int(next_bit)
+                #Make a list of th evalues as strings
+                bit_list_strings = [str(int) for int in color_bit_list]
+                #Join the new bit_list_strings can cast to int
+                hold = "".join(bit_list_strings)
+                colors[color_index] = int(hold , 2)
+                color_index+=1
+        #If the last chunk had a length that was not divisible by the
+        #bit_depth we will pull one final color and append those bits
+        remaining_bits = bit_list_len % bit_depth
+        if remaining_bits:
+            #Get the color as a string in binary
+            color_bit_list = format(colors[color_index], "b")
+            color_bit_list = color_bit_list.rjust(8,"0") #Pad string to 8 bits
+            color_bit_list = list(color_bit_list) #Make it a list
+            #rewrite bits in values equal to bitdepth starting with LSB
+            for x in range(remaining_bits):
+                next_bit = bit_list[bit_list_index]
+                bit_list_index+=1
+                color_bit_list[(x+1)*-1] = int(next_bit)
+            #Make a list of th evalues as strings
+            bit_list_strings = [str(int) for int in color_bit_list]
+            #Join the new bit_list_strings can cast to int
+            hold = "".join(bit_list_strings)
+            colors[color_index] = int(hold , 2)
+            color_index+=1
+
+def colors_to_pixels(colors, pixels, transparency_values, write_to_transparent, transparency):
+    global target
+    global progress
+
+    target = len(colors)//3
+    new_im_data = []
+    if write_to_transparent:
+        color_index = 0
+        #First append the first 3 pixels regardless of transparency
+        for num in range(3):
+            new_pixel = []
+            #Append 3 Color Values
+            for i in range(3):
+                new_pixel.append(colors[color_index])
+                color_index+=1
+            #Append the transparency Value
+            new_pixel.append(transparency_values[num])
+            #Append to new_im_data as a tuple
+            new_im_data.append(tuple(new_pixel))
+
+        #Add pixels until all the new data has been added
+        num = 3
+        while color_index < len(colors):
+            progress = color_index
+            #If pixel is tranparent write new color data
+            if pixels[num][3] == 0:
+                new_pixel = []
+                #Append 3 Color Values
+                for i in range(3):
+                    new_pixel.append(colors[color_index])
+                    color_index+=1
+                #Append the transparency Value
+                new_pixel.append(transparency_values[num])
+                #Append to new_im_data as a tuple
+                new_im_data.append(tuple(new_pixel))    
+            #If pixel is not transparent append the pixel from original image
+            else:
+                new_im_data.append(pixels[num])
+            num+=1
+    else:
+        if transparency:
+            color_index = 0
+            for num in range(len(colors)//3):
+                progress = num
+                new_pixel = []
+                #Append 3 Color Values
+                for i in range(3):
+                    new_pixel.append(colors[color_index])
+                    color_index+=1
+                #Append the transparency Value
+                new_pixel.append(transparency_values[num])
+                #Append to new_im_data as a tuple
+                new_im_data.append(tuple(new_pixel))
+        #Same but without the transparency append, split up for performance       
+        else:
+            color_index = 0
+            for num in range(len(colors)//3):
+                progress = num
+                new_pixel = []
+                #Append 3 Color Values
+                for i in range(3):
+                    new_pixel.append(colors[color_index])
+                    color_index+=1
+                new_im_data.append(tuple(new_pixel))
+    target = 0
+    return new_im_data
+
+def get_colors_from_pixels(pixels, start_index = None, end_index = None, transparency = False):
+    pass
 
 if __name__ == "__main__":
     print("Run app.py")
