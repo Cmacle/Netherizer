@@ -56,7 +56,7 @@ class StartPage(tk.Frame):
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        title = tk.Label(self, text="NETHERIZER v 1.0", font=controller.title_font)
+        title = tk.Label(self, text="NETHERIZER v 1.1", font=controller.title_font)
         title.grid(column=1, row=0, sticky="N", padx=250)
 
         sub_title = tk.Label(self, text="Image Steganography")
@@ -293,7 +293,7 @@ class EncodePage(tk.Frame):
         if self.bit_depth.get() == "Transparent":
             self.bit_depth = "0"
         if(self.image_path and self.file_path and self.bit_depth.get() and self.output_path):
-            if steg.state == "Ready":
+            if steg.state == "Done":
                 
                 #If bit_depth is set to auto check what the lowest possible value is
                 if self.bit_depth.get() == "Auto":
@@ -416,7 +416,7 @@ class DecodePage(tk.Frame):
     
     def decode(self):
         if self.image_path and self.output_path:
-            if(steg.state == "Ready"):
+            if(steg.state == "Done"):
                 #Create a new thread for the process
                 thread = Thread(target=steg.decode, args = (self.image_path, self.output_path))
                 thread.daemon = True

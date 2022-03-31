@@ -2,12 +2,12 @@ import logging
 import math
 import os
 import sys
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 from PIL import Image
 
 
 #Make a variable for updating the app UI 
-state = "Ready"
+state = "Done"
 #These two variables will be used to track progress throughout loops within the code
 #so it can be displayed to the UI periodically
 progress = 0
@@ -40,31 +40,28 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
     write_to_transparent = False
     try:
         #Set the state so that a new process cannot be started
-        state = "Processing Input File"
-        logger.log(logging.INFO, f'Encoding with Bit Depth: {bit_depth}')
-        logger.log(logging.INFO, "Processing Input File")
+        update_state(f'Encoding with Bit Depth: {bit_depth}')
+        update_state("Processing Input File")
         #Turn the input file into a bytearray that can be encoded
         file_byte_list = file_to_byte_list(file_path, bit_depth)
         #Check if encoder is set to tranparent only
         if bit_depth == 0:
             write_to_transparent = True
             bit_depth = 8
-        logger.log(logging.INFO, "Opening Image")
+        update_state("Opening Image")
         image = Image.open(image_path)
         #Get the pixel data from the image
-        logger.log(logging.INFO, "Extracting Pixel Data")
+        update_state("Extracting Pixel Data")
         pixels = image.getdata()
         image_mode = image.mode
         image_size = image.size
         #Delete the image as it is no longer needed
         del(image)
-        logger.log(logging.DEBUG, f'Num Pixels: {len(pixels)}')
         #Check if the image has a transparency value
         transparency = False
         if len(pixels[0]) > 3:
                 transparency = True
-        logger.log(logging.INFO, "Processing Pixel Data")
-        state = "Processing Pixel Data"
+        update_state("Processing Pixel Data")
         #Get the length of the byte_list so pixels_to_colors
         #will only get as many colors as necessary to save memory
         byte_list_len = len(file_byte_list)
@@ -75,8 +72,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
                                                     write_to_transparent, 
                                                     transparency)
         #Write the file data to the colors
-        logger.log(logging.INFO, "Writing File Data to Image")
-        state = "Writing File Data to Image"
+        update_state("Writing File Data to Image")
         write_file_to_colors(bit_depth, 
                             colors, 
                             file_byte_list, 
@@ -84,8 +80,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
         del(file_byte_list)
 
         #Reconstruct the pixels from the colors
-        logger.log(logging.INFO, "Reconstructing Pixels")
-        state = "Reconstructing Pixels"
+        update_state("Reconstructing Pixels")
         new_im_data = colors_to_pixels(colors, 
                                         pixels, 
                                         transparency_values, 
@@ -93,18 +88,16 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
                                         transparency)
         del(colors)
         #Add the remaining unaltered pixels
-        logger.log(logging.INFO, "Appending unaltered pixels")
-        state = "Appending unaltered pixels"
+        update_state("Appending unaltered pixels")
         target = len(pixels)
         for i in range(len(new_im_data), len(pixels)):
             progress = i
             new_im_data.append(pixels[i])
         del(pixels)
         target = 0
-        logger.log(logging.INFO, "Writing Output File")
+        update_state("Writing Output File")
         output_image(new_im_data, image_mode, image_size, output_path)
-        logger.log(logging.INFO, "Done")
-        state = "Ready"
+        update_state("Done")
 
     except Exception as err:
         target = 0
@@ -116,7 +109,7 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
         logger.log(logging.CRITICAL, f'Exception type: {exception_type}')
         logger.log(logging.CRITICAL, f'File name: {filename}')
         logger.log(logging.CRITICAL, f'Line number: {line_number}')
-        state = "Ready"
+        state = "Done"
 
 def decode(image_path: str, output_path: str) -> None:
     """Takes an image that has previously been encoded and outputs
@@ -130,17 +123,14 @@ def decode(image_path: str, output_path: str) -> None:
         global state
         global progress
         global target
-        state = "DECODING"
 
-        logger.log(logging.INFO, "DECODING")
-        logger.log(logging.INFO, f'Opening {image_path}')
+        update_state("DECODING")
+        update_state(f'Opening {image_path}')
         image = Image.open(image_path)
-        logger.log(logging.INFO, "Extracting Pixel Data")
+        update_state("Extracting Pixel Data")
         pixels = image.getdata()
         #Delete the image as it is no longer needed
         del(image)
-        logger.log(logging.INFO, "Processing Pixel Data")
-        state = "Processing Pixel Data"
         colors = bytearray()
 
         #Get the color data from the first 3 pixels to retrieve the bit_depth
@@ -158,9 +148,10 @@ def decode(image_path: str, output_path: str) -> None:
                     bit_depth.append("1")
         bit_depth = bit_list_to_bytes(bit_depth)
         bit_depth = int(bit_depth.decode('UTF-8'))
-        logger.log(logging.INFO, f'Bit Depth: {bit_depth}')
+        update_state(f'Bit Depth: {bit_depth}')
 
         #If bit_depth is 0 we will only read from tranparent pixels
+        update_state("Processing Pixel Data")
         target = len(pixels)
         transparency = False
         if bit_depth == 0:
@@ -182,209 +173,39 @@ def decode(image_path: str, output_path: str) -> None:
         target = 0
         del(pixels)
         
-        logger.log(logging.INFO, "Reading Data")
+        update_state("Reading Data")
 
-        if bit_depth == 1:
-            file_name_length = []#Make a list for the file name length
-            colors_offset = 0 #Keep track of what color we are on
-            for i in range(24):
-                color = colors[colors_offset]
-                colors_offset+=1
-                if color%2==0:
-                    file_name_length.append("0")
-                else:
-                    file_name_length.append("1")
-            file_name_length = bit_list_to_bytes(file_name_length)
-            file_name_length = int(file_name_length.decode('UTF-8'))
-            logger.log(logging.INFO, f'File Name Length: {file_name_length}')
-            #Get the file name from the data
-            file_name = []
-            #Get 8 bits for each character starting from the 16th
-            for i in range(file_name_length*8):
-                color = colors[colors_offset]
-                colors_offset+=1
-                if color%2==0:
-                    file_name.append("0")
-                else:
-                    file_name.append("1")
-            file_name = bit_list_to_bytes(file_name)
-            file_name = file_name.decode('UTF-8')
-            logger.log(logging.INFO, f'File Name: {file_name}')
-            #Get the file length
-            file_length = []
-            for i in range(88):
-                color = colors[colors_offset]
-                colors_offset+=1
-                if color%2==0:
-                    file_length.append("0")
-                else:
-                    file_length.append("1")
-            file_length = bit_list_to_bytes(file_length)
-            file_length = int(file_length.decode('UTF-8'))
-            logger.log(logging.INFO, f'File Length: {file_length} Bytes')
-            #Get the file information
-            bit_list = bytearray()
-            hold = file_length*8
-            logger.log(logging.INFO, f'Getting File Information')
-            state = "Getting File Information"
-            target = file_length*8
-            for i in range(file_length*8):
-                progress = i
-                color = colors[i+colors_offset]
-                bit_list.append(color%2)
-            target = 0
-            
-            logger.log(logging.INFO, f'Converting File Data')
-            state = "Converting File Data"
-            file_data = bytearray()
-            bit_list_index = 0
+        color_index = 0
+        remaining_bits = bytearray()
+        file_name_length, remaining_bits = read_data_from_colors(colors, remaining_bits, bit_depth, color_index, 3)
+        print(file_name_length)
+        file_name_length = int(file_name_length.decode('UTF-8'))
+        color_index += math.ceil(3*8/bit_depth)
+        update_state(f'File Name Length: {file_name_length}')
 
-            target = file_length
-            for i in range(file_length):
-                progress = i
-                hold = []
-                for x in range(8):
-                    hold.append(str(bit_list[bit_list_index]))
-                    bit_list_index += 1
-                file_data.append(int("".join(hold), 2))
-            target = 0
-            del(bit_list)
+        file_name, remaining_bits = read_data_from_colors(colors, remaining_bits, bit_depth, color_index, file_name_length)
+        file_name = file_name.decode('UTF-8')
+        color_index += math.ceil(file_name_length*8/bit_depth)
+        update_state(f'File Name: {file_name}')
 
-        elif bit_depth == 8:
-            byte_list = bytearray()
-            colors_offset = 0
-            byte_list_index = 0
+        file_length, remaining_bits = read_data_from_colors(colors, remaining_bits, bit_depth, color_index, 11)
+        file_length = int(file_length.decode('UTF-8'))
+        color_index += math.ceil(11*8/bit_depth)
+        update_state(f'File Length: {file_length}')
 
-            #Get enough data to get all file information
-            for i in range(1014):
-                byte_list.append(colors[colors_offset])
-                colors_offset += 1  
-            #Read that data
-
-            #Get the length of the file name from the first 3 bytes
-            file_name_length = bytearray()
-            for i in range(3):
-                file_name_length.append(byte_list[byte_list_index])
-                byte_list_index += 1
-            file_name_length = bytes(file_name_length)
-            file_name_length = int(file_name_length.decode("UTF-8"))
-            logger.log(logging.INFO, f'File Name Length: {file_name_length}')
-
-            #Read the file name
-            file_name = bytearray()
-            for i in range(file_name_length):
-                file_name.append(byte_list[byte_list_index])
-                byte_list_index += 1
-            file_name = bytes(file_name)
-            file_name = file_name.decode("UTF-8")
-            logger.log(logging.INFO, f'File Name: {file_name}')
-
-            #Get the file length from the next 11 bytes
-            file_length = bytearray()
-            for i in range(11):
-                file_length.append(byte_list[byte_list_index])
-                byte_list_index += 1
-            file_length = bytes(file_length)
-            file_length = int(file_length.decode("UTF-8"))
-            logger.log(logging.INFO, f'File Length: {file_length} Bytes')
-
-            #Get the file data from the image
-            file_data = bytearray()
-            #Save how many bytes we have used so far
-            colors_used = 3 + file_name_length + 11
-            state = "Reading File Data"
-            target = file_length
-            for i in range(colors_used, colors_used + file_length):
-                progress = i - colors_used
-                file_data.append(colors[i])
-            target = 0
-        else:
-            bit_list = bytearray()
-            #get the bit list for the first 8112 bits to ensure we have all file information
-            colors_offset = 0
-
-            for i in range(math.ceil(8112/bit_depth)):
-                #get the color as a bitstring then turn it into a list
-                color_bit_list = color_to_bit_list(colors[i])
-                colors_offset+=1
-                #Now read values equal to the bit_depth
-                for x in range(bit_depth):
-                    bit_list.append(int(color_bit_list[(x+1)*-1]))
-
-            #Now we start parsing the data
-            bit_list_index = 0
-            file_name_length = [] #Make a list for the file_name_length
-            #get 3 bytes of data
-            for i in range(24):
-                file_name_length.append(str(bit_list[bit_list_index]))
-                bit_list_index += 1
-            print(file_name_length)
-            file_name_length = bit_list_to_bytes(file_name_length)
-            print(file_name_length)
-            file_name_length = int(file_name_length.decode('UTF-8'))
-            logger.log(logging.INFO, f'File Name Length: {file_name_length}')
-
-            #Get the file name from the data
-            file_name = []
-            #Get 8 bits for each character starting from the 16th
-            for i in range(file_name_length*8):
-                file_name.append(str(bit_list[bit_list_index]))
-                bit_list_index += 1
-            file_name = bit_list_to_bytes(file_name)
-            file_name = file_name.decode('UTF-8')
-            logger.log(logging.INFO, f'File Name: {file_name}')
-
-            #Get the file length
-            file_length = []
-            for i in range(88):
-                file_length.append(str(bit_list[bit_list_index]))
-                bit_list_index += 1
-            file_length = bit_list_to_bytes(file_length)
-            file_length = int(file_length.decode('UTF-8'))
-            logger.log(logging.INFO, f'File Length: {file_length} Bytes')
-
-            #Get data until we have enough to satisfy the file length 
-            logger.log(logging.INFO, "Reading File Data")
-            state = "Reading File Data"
-
-            target = math.ceil(8112/bit_depth + file_length*8/bit_depth)
-            for i in range(math.ceil(8112/bit_depth + file_length*8/bit_depth)+1):
-                progress = i
-                #get the color as a bitstring then turn it into a list
-                color_bit_list = color_to_bit_list(colors[i+colors_offset])
-                #Now read values equal to the bit_depth
-                for x in range(bit_depth):
-                    bit_list.append(int(color_bit_list[(x+1)*-1]))
-            target = 0
-            #Delete Colors as they are no longer needed
-            del(colors)
-            #Get the file information
-            file_data = bytearray()
-            logger.log(logging.INFO, "Converting File Data")
-            state = "Converting File Data"
-            target = file_length
-            for i in range(file_length):
-                progress = i
-                hold = []
-                for x in range(8):
-                    hold.append(str(bit_list[bit_list_index]))
-                    bit_list_index += 1
-                file_data.append(int("".join(hold), 2))
-            target = 0
-            #Delete bit_list
-            del(bit_list)
-
-
+        update_state("Reading File Data")
+        target = math.ceil(file_length*8/bit_depth)
+        file_data, remaining_bits = read_data_from_colors(colors, remaining_bits, bit_depth, color_index, file_length)
+        target = 0
         #Write the data to a file
         output_location = os.path.join(output_path, file_name)
         with open(output_location, "wb") as file:
-            logger.log(logging.INFO, "Writing bytes to file:  ")
+            update_state("Writing bytes to file:  ")
             file.write(file_data)
-        logger.log(logging.INFO, "Done")
-        state = "Ready"
+        update_state("Done")
 
 
-    except Exception as err:
+    except None as err:
         exception_type, exception_object, exception_traceback = sys.exc_info()
         filename = exception_traceback.tb_frame.f_code.co_filename
         line_number = exception_traceback.tb_lineno
@@ -394,7 +215,7 @@ def decode(image_path: str, output_path: str) -> None:
         logger.log(logging.CRITICAL, f'Exception type: {exception_type}')
         logger.log(logging.CRITICAL, f'File name: {filename}')
         logger.log(logging.CRITICAL, f'Line number: {line_number}')
-        state = "Ready"
+        state = "Done"
 
 def output_image(image_data: List[Tuple[int, ...]], 
                 image_mode: str, 
@@ -459,8 +280,8 @@ def max_input_size(path: str, bit_depth: int) -> int:
         max_size = (width*height*3*bit_depth)/8
     return max_size
 
-def bit_list_to_bytes(bit_list: List[str]) -> bytes:
-    """Takes a list of bit values as strings ("0" or "1") and returns
+def bit_list_to_bytes(bit_list: Union[List[str], List[int]]) -> bytes:
+    """Takes a list of bit values as ints or strings and returns
     bytes. len(bit_list) must be divisible by 8
 
     Args:
@@ -469,8 +290,21 @@ def bit_list_to_bytes(bit_list: List[str]) -> bytes:
     Returns:
         bytes: bit_list converted to bytes
     """
-    bit_string = "".join(bit_list)
-    return int(bit_string, 2).to_bytes(len(bit_string) // 8, byteorder='big')
+    global progress
+    #if isinstance(bit_list[0], int): 
+    #    bit_list = [str(int) for int in bit_list]
+    #bit_string = "".join(bit_list)
+    #return int(bit_string, 2).to_bytes(len(bit_string) // 8, byteorder='big')
+    bytes = bytearray()
+    progress = 0
+    for i in range(math.ceil(len(bit_list)/8)):
+        hold = []
+        for x in range(8):
+            hold.append(str(bit_list[progress]))
+            progress += 1
+        hold = "".join(hold)
+        bytes.append(int(hold,2))
+    return bytes
             
 def int_to_byte(x: int) -> str:
     """Takes an int and returns a UTF-8 encoded str of the int
@@ -597,7 +431,11 @@ def num_pixels_transparent(img: Image) -> int:
             num_transparent+=1
     return num_transparent
 
-def pixels_to_colors(pixels, bit_depth, byte_list_len, write_to_transparent, transparency):
+def pixels_to_colors(pixels: bytearray, 
+                    bit_depth: int, 
+                    byte_list_len: int, 
+                    write_to_transparent: bool, 
+                    transparency: bool) -> Tuple[bytearray, bytearray]: 
     global target
     global progress
 
@@ -755,7 +593,24 @@ def write_file_to_colors(bit_depth, colors, file_byte_list, CHUNK_SIZE):
             colors[color_index] = int(hold , 2)
             color_index+=1
 
-def colors_to_pixels(colors, pixels, transparency_values, write_to_transparent, transparency):
+def colors_to_pixels(colors: bytearray, 
+                    pixels: bytearray, 
+                    transparency_values: bytearray, 
+                    write_to_transparent: bool, 
+                    transparency: bool) -> List[Tuple]:
+    """
+    Takes color values and returns a list of pixels
+
+    Args:
+        colors (bytearray): Color Values
+        pixels (bytearray): Pixels from the original image
+        transparency_values (bytearray): Transparency Values from the original image
+        write_to_transparent (bool): Whether or not to only write to transparent pixels
+        transparency (bool): Whether the original image had a transparency value
+
+    Returns:
+        List[Tuple]: A list of Tuples containing color values
+    """
     global target
     global progress
 
@@ -822,8 +677,70 @@ def colors_to_pixels(colors, pixels, transparency_values, write_to_transparent, 
     target = 0
     return new_im_data
 
-def get_colors_from_pixels(pixels, start_index = None, end_index = None, transparency = False):
-    pass
+def read_data_from_colors(colors: bytearray, 
+                        remaining_bits: bytearray, 
+                        bit_depth: int, 
+                        start_index: int, 
+                        bytes_to_read: int) -> bytearray:
+    """
+    Reads file data from the list of color values.
+
+    Args:
+        colors (bytearray): _description_
+        remaining_bits (bytearray): _description_
+        bit_depth (int): _description_
+        start_index (int): _description_
+        bytes_to_read (int): _description_
+
+    Returns:
+        bytearray: _description_
+    """
+    global progress
+    global target
+
+    byte_list = bytearray()
+    bit_list = bytearray()
+    for bit in remaining_bits:
+        bit_list.append(bit)
+
+    if bit_depth == 1:
+        for i in range(start_index, start_index+bytes_to_read*8):
+            progress = i - start_index + 1
+            if colors[i]%2==0:
+                byte_list.append(0)
+            else:
+                byte_list.append(1)
+        byte_list = bit_list_to_bytes(byte_list)
+
+    elif bit_depth == 8:
+        for i in range(start_index, start_index + bytes_to_read):
+            progress = i - start_index
+            byte_list.append(colors[i])
+
+    else:
+        for i in range(start_index, start_index + math.ceil(bytes_to_read*8/bit_depth)):
+            progress = i - start_index + 1
+            color_bit_list = color_to_bit_list(colors[i])
+            for x in range(bit_depth):
+                bit_list.append(int(color_bit_list[(x+1)*-1]))
+        remaining_bits = bit_list[bytes_to_read*8 : len(bit_list)]
+        if len(bit_list) > 256 * 8:
+            update_state("Converting File Data")
+            target = bytes_to_read * 8
+        byte_list = bit_list_to_bytes(bit_list[0 : bytes_to_read*8])
+    return byte_list, remaining_bits
+
+
+def update_state(new_state:str) -> None:
+    """
+    Updates the state value and logs that state
+
+    Args:
+        new_state (str): The new State
+    """
+    global state
+    logger.log(logging.INFO, new_state)
+    state = new_state
 
 if __name__ == "__main__":
     print("Run app.py")
