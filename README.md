@@ -1,1 +1,1 @@
-# Netherizer
+# Netherizer - Image Steganography
