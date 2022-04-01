@@ -205,7 +205,7 @@ def decode(image_path: str, output_path: str) -> None:
         update_state("Done")
 
 
-    except None as err:
+    except Exception as err:
         exception_type, exception_object, exception_traceback = sys.exc_info()
         filename = exception_traceback.tb_frame.f_code.co_filename
         line_number = exception_traceback.tb_lineno
