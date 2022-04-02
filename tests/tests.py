@@ -15,8 +15,7 @@ class StegTests(unittest.TestCase):
                         ["0","1","1","0","0","1","0","0"])
         self.assertEqual(steg.color_to_bit_list(255), 
                         ["1","1","1","1","1","1","1","1"])
-        self.assertRaises(ValueError, steg.color_to_bit_list, 256)
-        self.assertRaises(ValueError, steg.color_to_bit_list, -1)
+        
     
     def test_bit_list_to_bytes(self):
         self.assertEqual(steg.bit_list_to_bytes(["0","0","0","0","0","0","0","0"]),

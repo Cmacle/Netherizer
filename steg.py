@@ -244,15 +244,10 @@ def color_to_bit_list(color: int) -> List[str]:
     Args:
         color (int): The color value as an int
 
-    Raises:
-        ValueError: If the color value is outside of range 0-255
-
-    Returns:
+    Returns:S
         List[str]: Returns a list of strings 8 characters long containing
         the binary representation of the color
     """
-    if color > 255 or color < 0:
-        raise ValueError("Input out of range: 0-255")
 
     color_bit_list = format(color, "b")
     color_bit_list = color_bit_list.rjust(8, "0") #Pad the string to 8 characters
