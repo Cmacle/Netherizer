@@ -5,6 +5,7 @@ import sys
 from typing import List, Optional, Tuple, Union
 from PIL import Image
 
+CHUNK_SIZE = 10000
 
 #Make a variable for updating the app UI 
 state = "Done"
@@ -32,7 +33,6 @@ def encode(image_path: str, file_path: str, bit_depth: int, output_path: str) ->
     #CHUNK_SIZE will control how large each chunk of data from the input
     #file will be while encoded, the value will be made made divisible by 8
     #then multiplied by the bit_depth so later loops can be simplified
-    CHUNK_SIZE = 10000
     global state
     global progress
     global target
@@ -244,7 +244,7 @@ def color_to_bit_list(color: int) -> List[str]:
     Args:
         color (int): The color value as an int
 
-    Returns:S
+    Returns:
         List[str]: Returns a list of strings 8 characters long containing
         the binary representation of the color
     """
@@ -478,7 +478,16 @@ def pixels_to_colors(pixels: bytearray,
     target = 0
     return colors, transparency_values
 
-def write_file_to_colors(bit_depth, colors, file_byte_list, CHUNK_SIZE):
+def write_file_to_colors(bit_depth: int, colors: bytearray, file_byte_list: bytearray) -> None:
+    """
+    Write the bytes of file_byte_list to colors according to the 
+    bit_depth.
+
+    Args:
+        bit_depth (_type_): How many bits to overwrite on each color 1-8
+        colors (_type_): The bytearray of color values
+        file_byte_list (_type_): The bytearray of file data to write to the colors
+    """
     global target
     global progress
 
