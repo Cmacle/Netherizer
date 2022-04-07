@@ -3,19 +3,23 @@ import os
 import queue
 import tkinter as tk
 from threading import Thread
-from tkinter import LEFT, SOLID, SW, Label, OptionMenu, StringVar, TclError, Toplevel, font as tkfont
-from tkinter import filedialog
+from tkinter import LEFT, SOLID, SW, Label, font as tkfont
+from tkinter import filedialog, OptionMenu, StringVar, TclError, Toplevel
 from tkinter.scrolledtext import ScrolledText
 import steg
 
 LOG_LEVEL = 20
+
 
 class App(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.title_font = tkfont.Font(family='Helvetica', size=18, weight="bold", slant="italic")
+        self.title_font = tkfont.Font(family='Helvetica',
+                                      size=18,
+                                      weight="bold",
+                                      slant="italic")
 
         # the container is where we'll stack a bunch of frames
         # on top of each other, then the one we want visible
@@ -56,7 +60,8 @@ class StartPage(tk.Frame):
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        title = tk.Label(self, text="NETHERIZER v 1.1", font=controller.title_font)
+        title = tk.Label(self, text="NETHERIZER v 1.1",
+                         font=controller.title_font)
         title.grid(column=1, row=0, sticky="N", padx=250)
 
         sub_title = tk.Label(self, text="Image Steganography")
@@ -68,8 +73,8 @@ class StartPage(tk.Frame):
         button2 = tk.Button(self, text="Decode", font=controller.title_font,
                             command=lambda: controller.show_frame("DecodePage"),
                             width=10, height=2)
-        button1.grid(column=1, row=2, pady=(50,0), )
-        button2.grid(column=1, row=3, pady=(10,0), )
+        button1.grid(column=1, row=2, pady=(50, 0), )
+        button2.grid(column=1, row=3, pady=(10, 0), )
 
 
 class EncodePage(tk.Frame):
@@ -94,31 +99,34 @@ class EncodePage(tk.Frame):
         self.columnconfigure(21, weight=1)
 
         backbutton = tk.Button(self, text="Back",
-                           command=lambda: controller.show_frame("StartPage"))
+                               command=lambda: controller.show_frame("StartPage"))
         backbutton.grid(column=0, row=0, padx=2, pady=2, sticky=SW)
         title = tk.Label(self, text="Encode", font=controller.title_font)
         title.grid(column=2, row=0, padx=50)
 
         choose_image_label = tk.Label(self, text="Choose Image to Encode:")
-        choose_image_label.grid(column=0, row=1, pady=(100,0))
+        choose_image_label.grid(column=0, row=1, pady=(100, 0))
         choose_image_button = tk.Button(self, text="Choose Image",
                                         command=lambda: self.choose_encode_image())
         choose_image_button.grid(column=0, row=2, pady=10)
 
-        CreateToolTip(choose_image_button, text= 'Choose the image\n'
-                                    'that will be encoded with\n'
-                                    'data from the input file')
+        CreateToolTip(choose_image_button, text='Choose the image\n'
+                      'that will be encoded with\n'
+                      'data from the input file')
 
-        #Label for image name
+        # Label for image name
         self.image_name = StringVar()
         self.image_name.set("")
-        image_name_label = tk.Label(self, textvariable=self.image_name, font=("Helvetica", "8"))
+        image_name_label = tk.Label(self, textvariable=self.image_name,
+                                    font=("Helvetica", "8"))
         image_name_label.grid(column=0, row=3)
 
-        #Label for maximum input file name
+        # Label for maximum input file name
         self.max_input_size_string = StringVar()
         self.max_input_size_string.set("")
-        max_size_label = tk.Label(self, textvariable=self.max_input_size_string, font=("Helvetica", "8"))
+        max_size_label = tk.Label(self,
+                                  textvariable=self.max_input_size_string,
+                                  font=("Helvetica", "8"))
         max_size_label.grid(column=0, row=4)
 
         bit_depth_label = tk.Label(self, text="Choose Bitdepth:")
@@ -140,62 +148,69 @@ class EncodePage(tk.Frame):
         self.bit_depth.set("Auto")
         bit_depth_menu = OptionMenu(self, self.bit_depth, *bit_depth_options)
         bit_depth_menu.grid(column=1, row=2, padx=20)
-        CreateToolTip(bit_depth_menu, text='Choose how many bits of each pixel value\n'
-                                'that will be edited\n'
-                                'Larger values will lead to more noticeable changes')
+        CreateToolTip(bit_depth_menu,
+                      text='Choose how many bits of each pixel value\n'
+                      'that will be edited\n'
+                      'Larger values will lead to more noticeable changes')
         self.bit_depth.trace("w", self.update_max_input_size)
 
         choose_input_label = tk.Label(self, text='Choose your input file:')
         choose_input_label.grid(column=2, row=1, sticky='S')
 
         choose_file_button = tk.Button(self, text="Choose File",
-                                        command=lambda: self.choose_input_file())
+                                       command=lambda: self.choose_input_file())
         choose_file_button.grid(column=2, row=2, pady=10)
 
-        #Label for input file name
+        # Label for input file name
         self.input_name = StringVar()
         self.input_name.set("")
-        input_name_label = tk.Label(self, textvariable=self.input_name, font=("Helvetica", "8"))
+        input_name_label = tk.Label(self, textvariable=self.input_name,
+                                    font=("Helvetica", "8"))
         input_name_label.grid(column=2, row=3)
 
-        #Label for input file size
+        # Label for input file size
         self.input_size_string = StringVar()
         self.input_size_string.set("")
-        input_size_label = tk.Label(self, textvariable=self.input_size_string, font=("Helvetica", "8"))
+        input_size_label = tk.Label(self, textvariable=self.input_size_string,
+                                    font=("Helvetica", "8"))
         input_size_label.grid(column=2, row=4)
 
-        #Label for output path label
+        # Label for output path label
         choose_output_location = tk.Label(self, text="Choose output location:")
         choose_output_location.grid(column=3, row=1, sticky="S", padx=20)
 
-        #Choose output path button
+        # Choose output path button
         choose_output_button = tk.Button(self, text="Choose Location",
-                                        command=lambda: self.get_output_path())
+                                         command=lambda: self.get_output_path())
         choose_output_button.grid(column=3, row=2)
 
-        #Output Path Label
+        # Output Path Label
         self.output_path = StringVar()
         self.output_path.set("")
-        output_path_label = tk.Label(self, textvariable=self.output_path, font=("Helvetica", "8"))
+        output_path_label = tk.Label(self,
+                                     textvariable=self.output_path,
+                                     font=("Helvetica", "8"))
         output_path_label.grid(column=3, row=3)
 
-        #Encode Button
+        # Encode Button
         encode_button = tk.Button(self, text="ENCODE",
-                           command=lambda: self.encode())
+                                  command=lambda: self.encode())
         encode_button.grid(column=4, row=2, padx=20)
 
-        #Log
+        # Log
         steg.logger = logging.getLogger(__name__)
-        logging.basicConfig(level = LOG_LEVEL)
+        logging.basicConfig(level=LOG_LEVEL)
 
         self.scrolled_text = ScrolledText(self, state='disabled', height=12)
-        self.scrolled_text.grid(column=0, row=5, columnspan=5, sticky=("SW", "SE"))
+        self.scrolled_text.grid(column=0, row=5, columnspan=5,
+                                sticky=("SW", "SE"))
         self.scrolled_text.configure(font='TkFixedFont')
         self.scrolled_text.tag_config('INFO', foreground='black')
         self.scrolled_text.tag_config('DEBUG', foreground='gray')
         self.scrolled_text.tag_config('WARNING', foreground='orange')
         self.scrolled_text.tag_config('ERROR', foreground='red')
-        self.scrolled_text.tag_config('CRITICAL', foreground='red', underline=1)
+        self.scrolled_text.tag_config('CRITICAL', foreground='red',
+                                      underline=1)
         # Create a logging handler using a queue
         self.log_queue = queue.Queue()
         self.queue_handler = QueueHandler(self.log_queue)
@@ -212,15 +227,17 @@ class EncodePage(tk.Frame):
         self.scrolled_text.yview(tk.END)
 
     def poll_log_queue(self):
-        #Every 1 second we will output the progress on the current step if applicable
+        # Every 1 second we will output the progress
+        # on the current step if applicable
         if self.counter >= 10:
             try:
-                steg.logger.log(logging.INFO, f'{steg.state}: {int(steg.progress/steg.target*100)}% ({steg.progress}/{steg.target})')
+                steg.logger.log(logging.INFO,
+                                f'{steg.state}: {int(steg.progress/steg.target*100)}% ({steg.progress}/{steg.target})')
                 self.counter = 0
             except ZeroDivisionError:
                 pass
         else:
-            self.counter+=1
+            self.counter += 1
         # Check every 100ms if there is a new message in the queue to display
         while True:
             try:
@@ -232,7 +249,6 @@ class EncodePage(tk.Frame):
         self.controller.after(100, self.poll_log_queue)
 
     def choose_encode_image(self):
-        path = ""
         root = tk.Tk()
         root.withdraw()
         filetypes = (
@@ -248,9 +264,9 @@ class EncodePage(tk.Frame):
         if self.image_path:
             self.update_max_input_size()
         root.destroy()
-    
+
     def choose_input_file(self):
-        path = ""
+
         root = tk.Tk()
         root.withdraw()
         filetypes = (
@@ -272,7 +288,8 @@ class EncodePage(tk.Frame):
     def get_output_path(self):
         files = [('PNG', '*.png'),]
         if(self.output_path):
-            self.output_path.set(filedialog.asksaveasfilename(filetypes = files, defaultextension = files))
+            self.output_path.set(filedialog.asksaveasfilename(filetypes=files,
+                                                              defaultextension=files))
 
     def update_max_input_size(self, *args):
         if self.image_path:
@@ -285,34 +302,42 @@ class EncodePage(tk.Frame):
                 max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
                 self.max_input_size_string.set(max_input_size_string)
             else:
-                self.max_input_size = steg.max_input_size(self.image_path, int(self.bit_depth.get()))
+                self.max_input_size = steg.max_input_size(self.image_path,
+                                                          int(self.bit_depth.get()))
                 max_input_size_string = f'''\rMax File input size:\r{self.max_input_size/1000}KB'''
                 self.max_input_size_string.set(max_input_size_string)
-    
+
     def encode(self):
         if self.bit_depth.get() == "Transparent":
             self.bit_depth = "0"
-        if(self.image_path and self.file_path and self.bit_depth.get() and self.output_path):
+        if(self.image_path and self.file_path and self.bit_depth.get() and
+           self.output_path):
             if steg.state == "Done":
                 
-                #If bit_depth is set to auto check what the lowest possible value is
+                # If bit_depth is set to auto check what the
+                # lowest possible value is
                 if self.bit_depth.get() == "Auto":
-                    #Check the lowest bit_depth starting with transparent
-                    for i in range(0,9):
-                        if self.input_size < steg.max_input_size(self.image_path, i):
+                    # Check the lowest bit_depth starting with transparent
+                    for i in range(0, 9):
+                        if self.input_size < steg.max_input_size(self.image_path,
+                                                                 i):
                             self.bit_depth.set(f'{i}')
                             break
 
                 if self.input_size < self.max_input_size:
-                    #Create a new thread for the process
-                    thread = Thread(target=steg.encode, args = (self.image_path, self.file_path, 
-                                                                int(self.bit_depth.get()), self.output_path.get()))
+                    # Create a new thread for the process
+                    thread = Thread(target=steg.encode,
+                                    args=(self.image_path,
+                                          self.file_path,
+                                          int(self.bit_depth.get()),
+                                          self.output_path.get()))
                     thread.daemon = True
                     thread.start()
                 else:
                     steg.logger.log(logging.WARN, "INPUT FILE TOO LARGE")
             else:
                 steg.logger.log(logging.WARN, "PROCESS ONGOING")
+
 
 class DecodePage(tk.Frame):
     image_path = None
@@ -327,42 +352,49 @@ class DecodePage(tk.Frame):
         self.columnconfigure(21, weight=1)
 
         backbutton = tk.Button(self, text="Back",
-                           command=lambda: controller.show_frame("StartPage"))
+                               command=lambda: controller.show_frame("StartPage"))
         backbutton.grid(column=0, row=0, padx=2, pady=2, sticky=SW)
         title = tk.Label(self, text="Decode", font=controller.title_font)
         title.grid(column=1, row=0, padx=25)
 
         choose_image_label = tk.Label(self, text="Choose Image to Decode:")
-        choose_image_label.grid(column=0, row=1, pady=(100,0), padx=(50,0))
+        choose_image_label.grid(column=0, row=1, pady=(100, 0), padx=(50, 0))
         choose_image_button = tk.Button(self, text="Choose Image",
                                         command=lambda: self.choose_decode_image())
         choose_image_button.grid(column=0, row=2, pady=10)
 
         self.image_name = StringVar()
         self.image_name.set("")
-        image_name_label = tk.Label(self, textvariable=self.image_name, font=("Helvetica", "8"))
+        image_name_label = tk.Label(self,
+                                    textvariable=self.image_name,
+                                    font=("Helvetica", "8"))
         image_name_label.grid(column=0, row=3)
 
         choose_output_label = tk.Label(self, text="Choose Output Folder:")
         choose_output_label.grid(column=1, row=1, sticky="S", padx=20)
         choose_output_button = tk.Button(self, text="Choose Folder",
-                                        command=lambda: self.choose_output_folder())
+                                         command=lambda: self.choose_output_folder())
         choose_output_button.grid(column=1, row=2)
 
         self.output_path_string = StringVar()
         self.output_path_string.set("")
-        output_path_label = tk.Label(self, textvariable=self.output_path_string, font=("Helvetica", "8"))
+        output_path_label = tk.Label(self,
+                                     textvariable=self.output_path_string,
+                                     font=("Helvetica", "8"))
         output_path_label.grid(column=1, row=3)
 
         decode_button = tk.Button(self, text="DECODE",
-                                command=lambda: self.decode())
+                                  command=lambda: self.decode())
         decode_button.grid(column=2, row=2)                       
 
         steg.logger = logging.getLogger(__name__)
-        logging.basicConfig(level = LOG_LEVEL)
+        logging.basicConfig(level=LOG_LEVEL)
 
         self.scrolled_text = ScrolledText(self, state='disabled', height=12)
-        self.scrolled_text.grid(column=0, row=5, columnspan=5, sticky=("SW", "SE"))
+        self.scrolled_text.grid(column=0,
+                                row=5,
+                                columnspan=5,
+                                sticky=("SW", "SE"))
         self.scrolled_text.configure(font='TkFixedFont')
         self.scrolled_text.tag_config('INFO', foreground='black')
         self.scrolled_text.tag_config('DEBUG', foreground='gray')
@@ -396,7 +428,6 @@ class DecodePage(tk.Frame):
         self.controller.after(100, self.poll_log_queue)
 
     def choose_decode_image(self):
-        path = ""
         root = tk.Tk()
         root.withdraw()
         filetypes = (
@@ -409,16 +440,17 @@ class DecodePage(tk.Frame):
         )
         self.image_name.set(os.path.basename(self.image_path))
         root.destroy()
-    
+
     def choose_output_folder(self):
         self.output_path = filedialog.askdirectory()
         self.output_path_string.set(self.output_path)
-    
+
     def decode(self):
         if self.image_path and self.output_path:
             if(steg.state == "Done"):
-                #Create a new thread for the process
-                thread = Thread(target=steg.decode, args = (self.image_path, self.output_path))
+                # Create a new thread for the process
+                thread = Thread(target=steg.decode,
+                                args=(self.image_path, self.output_path))
                 thread.daemon = True
                 thread.start()
 
@@ -441,7 +473,7 @@ class ToolTip(object):
             return
         x, y, cx, cy = self.widget.bbox("insert")
         x = x + self.widget.winfo_rootx() + 57
-        y = y + cy + self.widget.winfo_rooty() +27
+        y = y + cy + self.widget.winfo_rooty() + 27
         self.tipwindow = tw = Toplevel(self.widget)
         tw.wm_overrideredirect(1)
         tw.wm_geometry("+%d+%d" % (x, y))
@@ -456,15 +488,19 @@ class ToolTip(object):
         if tw:
             tw.destroy()
 
+
 def CreateToolTip(widget, text):
     toolTip = ToolTip(widget)
+
     def enter(event):
         toolTip.showtip(text)
+
     def leave(event):
         toolTip.hidetip()
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
-            
+
+
 class QueueHandler(logging.Handler):
     """Class to send logging records to a queue
 
@@ -482,3 +518,4 @@ class QueueHandler(logging.Handler):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+    
