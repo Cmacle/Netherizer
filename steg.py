@@ -464,22 +464,26 @@ def num_pixels_transparent(img: Image) -> int:
     return num_transparent
 
 
-def pixels_to_colors(pixels: bytearray,
+def pixels_to_colors(pixels: list[tuple],
                      bit_depth: int,
                      byte_list_len: int,
                      write_to_transparent: bool,
                      transparency: bool) -> Tuple[bytearray, bytearray]:
-    """_summary_
+    """
+    Take a list of pixels and return a bytearray of color values and
+    transparency values if available.
 
     Args:
-        pixels (bytearray): _description_
-        bit_depth (int): _description_
-        byte_list_len (int): _description_
-        write_to_transparent (bool): _description_
-        transparency (bool): _description_
+        pixels (list[tuple]): The list of pixels
+        bit_depth (int): The bit_depth
+        byte_list_len (int): The length of the input file
+        write_to_transparent (bool): If true will only retrieve colors from
+        transparent pixels
+        transparency (bool): If the pixels have a transparency value
 
     Returns:
-        Tuple[bytearray, bytearray]: _description_
+        Tuple[bytearray, bytearray]: Returns a tuple of colors 
+        and transparency values
     """
     global target
     global progress
@@ -748,19 +752,20 @@ def read_data_from_colors(colors: bytearray,
                           remaining_bits: bytearray,
                           bit_depth: int,
                           start_index: int,
-                          bytes_to_read: int) -> bytearray:
+                          bytes_to_read: int) -> Tuple[bytearray, bytearray]:
     """
     Read file data from the list of color values.
 
     Args:
-        colors (bytearray): _description_
-        remaining_bits (bytearray): _description_
-        bit_depth (int): _description_
-        start_index (int): _description_
-        bytes_to_read (int): _description_
+        colors (bytearray): bytearray of color values
+        remaining_bits (bytearray): any remaing bits from previous data reads
+        bit_depth (int): The bit_depth
+        start_index (int): Starting index
+        bytes_to_read (int): The number of bytes to read
 
     Returns:
-        bytearray: _description_
+        Tuple[bytearray, bytearray]: Returns a bytearray with
+        data and a bytearray of remaining bits.
     """
     global progress
     global target
