@@ -23,8 +23,9 @@ def encode(image_path: str,
            file_path: str,
            bit_depth: int,
            output_path: str) -> None:
-    """This will take the input image and file to be hidden within
-    the input image.
+    """
+    Take the input image and file to be hidden within
+    the input image, output the encoded image to the output path.
 
     Args:
         image_path (str): The path to the image that will be encoded
@@ -79,8 +80,7 @@ def encode(image_path: str,
         update_state("Writing File Data to Image")
         write_file_to_colors(bit_depth,
                              colors,
-                             file_byte_list,
-                             CHUNK_SIZE)
+                             file_byte_list,)
         del(file_byte_list)
 
         # Reconstruct the pixels from the colors
@@ -103,7 +103,7 @@ def encode(image_path: str,
         output_image(new_im_data, image_mode, image_size, output_path)
         update_state("Done")
 
-    except Exception as err:
+    except None as err:
         target = 0
         exception_type, exception_object, exception_traceback = sys.exc_info()
         filename = exception_traceback.tb_frame.f_code.co_filename
@@ -118,7 +118,8 @@ def encode(image_path: str,
 
 
 def decode(image_path: str, output_path: str) -> None:
-    """Takes an image that has previously been encoded and outputs
+    """
+    Take an image that has previously been encoded and output
     the encoded file to the output_path.
 
     Args:
@@ -241,7 +242,7 @@ def output_image(image_data: List[Tuple[int, ...]],
                  output_path: str
                  ) -> None:
     """
-    Takes a list of pixel data, creates a new image using 
+    Take a list of pixel data, creates a new image using 
     image_mode and image_size then outputs to the output path
 
     Args:
@@ -256,7 +257,8 @@ def output_image(image_data: List[Tuple[int, ...]],
 
 
 def color_to_bit_list(color: int) -> List[str]:
-    """Takes a color value as an int and converts it to a
+    """
+    Take a color value as an int and convert it to a
     list of strings 8 characters long of its binary
     string representation.
 
@@ -276,7 +278,8 @@ def color_to_bit_list(color: int) -> List[str]:
 
 
 def max_input_size(path: str, bit_depth: int) -> int:
-    """Calculates the maximum input file size from the provided image path
+    """
+    Calculate the maximum input file size from the provided image path
     as well as the bit_depth.
 
     Args:
@@ -298,7 +301,8 @@ def max_input_size(path: str, bit_depth: int) -> int:
 
 
 def bit_list_to_bytes(bit_list: Union[List[str], List[int]]) -> bytes:
-    """Takes a list of bit values as ints or strings and returns
+    """
+    Take a list of bit values as ints or strings and return
     bytes. len(bit_list) must be divisible by 8
 
     Args:
@@ -308,20 +312,21 @@ def bit_list_to_bytes(bit_list: Union[List[str], List[int]]) -> bytes:
         bytes: bit_list converted to bytes
     """
     global progress
-    bytes = bytearray()
+    byte_array = bytearray()
     progress = 0
-    for i in range(math.ceil(len(bit_list)/8)):
+    for _ in range(math.ceil(len(bit_list)/8)):
         hold = []
-        for x in range(8):
+        for _ in range(8):
             hold.append(str(bit_list[progress]))
             progress += 1
         hold = "".join(hold)
-        bytes.append(int(hold, 2))
-    return bytes
+        byte_array.append(int(hold, 2))
+    return byte_array
 
 
 def int_to_byte(x: int) -> str:
-    """Takes an int and returns a UTF-8 encoded str of the int
+    """
+    Take an int and return a UTF-8 encoded str of the int
 
     Args:
         x (int): integer value
@@ -336,7 +341,8 @@ def bytes_to_bit_list(byte_list: List[str],
                       start_index: Optional[int] = None,
                       end_index: Optional[int] = None
                       ) -> List[int]:
-    """This function takes a list of bytes and returns a list of ints with
+    """
+    Take a list of bytes and return a list of ints with
     values of 1 or 0. If there is an end_index given it will only
     return the bits for the bytes within the range provided.
 
@@ -389,7 +395,8 @@ def bytes_to_bit_list(byte_list: List[str],
 
 
 def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
-    """This will take a file and return a list of UTF-8 encoded strings and file
+    """
+    Take a file and return a list of UTF-8 encoded strings and file
     bytes.
 
     Args:
@@ -437,7 +444,8 @@ def file_to_byte_list(file_path: str, bit_depth: int) -> List[str]:
 
 
 def num_pixels_transparent(img: Image) -> int:
-    """Takes an image and returns the number of transparent pixels
+    """
+    Take an image and return the number of transparent pixels
     contained within it.
 
     Args:
@@ -461,6 +469,18 @@ def pixels_to_colors(pixels: bytearray,
                      byte_list_len: int,
                      write_to_transparent: bool,
                      transparency: bool) -> Tuple[bytearray, bytearray]:
+    """_summary_
+
+    Args:
+        pixels (bytearray): _description_
+        bit_depth (int): _description_
+        byte_list_len (int): _description_
+        write_to_transparent (bool): _description_
+        transparency (bool): _description_
+
+    Returns:
+        Tuple[bytearray, bytearray]: _description_
+    """
     global target
     global progress
 
@@ -642,7 +662,7 @@ def colors_to_pixels(colors: bytearray,
                      write_to_transparent: bool,
                      transparency: bool) -> List[Tuple]:
     """
-    Takes color values and returns a list of pixels
+    Take color values and return a list of pixels.
 
     Args:
         colors (bytearray): Color Values
@@ -730,7 +750,7 @@ def read_data_from_colors(colors: bytearray,
                           start_index: int,
                           bytes_to_read: int) -> bytearray:
     """
-    Reads file data from the list of color values.
+    Read file data from the list of color values.
 
     Args:
         colors (bytearray): _description_
@@ -780,7 +800,7 @@ def read_data_from_colors(colors: bytearray,
 
 def update_state(new_state: str) -> None:
     """
-    Updates the state value and logs that state
+    Update the state value and logs that state
 
     Args:
         new_state (str): The new State
