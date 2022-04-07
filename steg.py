@@ -103,7 +103,7 @@ def encode(image_path: str,
         output_image(new_im_data, image_mode, image_size, output_path)
         update_state("Done")
 
-    except None as err:
+    except Exception as err:
         target = 0
         exception_type, exception_object, exception_traceback = sys.exc_info()
         filename = exception_traceback.tb_frame.f_code.co_filename
