@@ -2,6 +2,7 @@ import logging
 import os
 import queue
 import tkinter as tk
+import configparser
 from threading import Thread
 from tkinter import LEFT, SOLID, SW, Label, font as tkfont
 from tkinter import filedialog, OptionMenu, StringVar, TclError, Toplevel
@@ -514,8 +515,16 @@ class QueueHandler(logging.Handler):
     def emit(self, record):
         self.log_queue.put(record)
 
+def load_color_themes():
+    pass
 
 if __name__ == "__main__":
+    config = configparser.ConfigParser()
+    config.read("config/color-themes.ini")
+    for section in config.sections():
+        print(section)
+        print(config[section]["bg"])
+        print(config[section]['fg'])
     app = App()
     app.mainloop()
     
