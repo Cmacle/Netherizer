@@ -6,17 +6,16 @@ import configparser
 from threading import Thread
 from tkinter import LEFT, SOLID, SW, Label, font as tkfont
 from tkinter import filedialog, OptionMenu, StringVar, TclError, Toplevel
+from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 import steg
 
 LOG_LEVEL = 20
-
-
+color_themes = []
 class App(tk.Tk):
-
+    
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-
         self.title_font = tkfont.Font(family='Helvetica',
                                       size=18,
                                       weight="bold",
@@ -76,6 +75,9 @@ class StartPage(tk.Frame):
                             width=10, height=2)
         button1.grid(column=1, row=2, pady=(50, 0), )
         button2.grid(column=1, row=3, pady=(10, 0), )
+        
+        wizbutton = tk.Button(self,text="We Wizzin", command=lambda: update_theme(app,"I Want To Feel Like A Hacker"))
+        wizbutton.grid(column=1, row=4)
 
 
 class EncodePage(tk.Frame):
@@ -516,15 +518,51 @@ class QueueHandler(logging.Handler):
         self.log_queue.put(record)
 
 def load_color_themes():
-    pass
-
-if __name__ == "__main__":
+    global color_themes
+    
     config = configparser.ConfigParser()
     config.read("config/color-themes.ini")
+    
+    # Add default theme no matter what
+    color_themes.append(("Default", "#FFFFFF", "#000000"))
+    
     for section in config.sections():
-        print(section)
-        print(config[section]["bg"])
-        print(config[section]['fg'])
+        new_theme = (section, config[section]["bg"], config[section]["fg"])
+        color_themes.append(new_theme)
+    
+    
+def update_theme(app, theme_name):
+    global color_themes
+    #Look for the theme name in color_themes
+    theme_index = 0
+    for i in range(len(color_themes)):
+        if color_themes[i][0] == theme_name:
+            bg = color_themes[i][1]
+            fg = color_themes[i][2]
+            break
+    
+    for frame in app.frames.values():
+        frame.config(bg=bg)
+        for widget in frame.winfo_children():
+            if isinstance(widget, (tk.Label, tk.Button)):
+                widget.config(bg=bg, fg=fg)
+            elif isinstance(widget, OptionMenu):
+                widget.config(bg=bg, fg=fg)
+                widget["menu"].config(bg=bg, fg=fg)
+        
+        if hasattr(frame, "scrolled_text"):
+            frame.scrolled_text.config(bg=bg)
+            frame.scrolled_text.tag_config('INFO', foreground=fg)
+            frame.scrolled_text.tag_config('DEBUG', foreground=fg)
+
+    
+    
+    
+
+if __name__ == "__main__":
+    global app
+    load_color_themes()
+
     app = App()
     app.mainloop()
     
