@@ -15,5 +15,10 @@ The Netherizer is a python based image steganography tool used for concealing fi
 ![chooseencode](https://user-images.githubusercontent.com/36272771/169583063-94aadc9d-9d16-4ce3-9477-e4e3c9f06f49.png)
 5. (Optional) Change Bit Depth, This will change how much data is overwritten with file data. If unsure leave on auto and the minimum option will be chosen.
 6. Choose input file by selecting Choose File, maximum input size is shown below your input image.  
-7. ![chooseinput](https://user-images.githubusercontent.com/36272771/169585975-791a0185-2f5d-469d-8848-48df2550989c.png)
+![chooseinput](https://user-images.githubusercontent.com/36272771/169585975-791a0185-2f5d-469d-8848-48df2550989c.png)
+7. Choose the output location and file name for the resulting encoded image.
+![encodechooselocation](https://user-images.githubusercontent.com/36272771/169854403-26fb4a7a-e7c9-4184-8e79-bba926666271.png)
+8. Hit encode
+
+
 
