@@ -11,7 +11,11 @@ from tkinter.scrolledtext import ScrolledText
 import steg
 
 LOG_LEVEL = 20
+CONFIG_PATH = "config/prefs.ini"
+
+
 color_themes = []
+current_theme = "Default"
 class App(tk.Tk):
     
     def __init__(self, *args, **kwargs):
@@ -56,6 +60,7 @@ class App(tk.Tk):
 class StartPage(tk.Frame):
 
     def __init__(self, parent, controller):
+        global selected_theme
         tk.Frame.__init__(self, parent)
         self.controller = controller
         self.rowconfigure(21, weight=1)
@@ -76,9 +81,17 @@ class StartPage(tk.Frame):
         button1.grid(column=1, row=2, pady=(50, 0), )
         button2.grid(column=1, row=3, pady=(10, 0), )
         
-        wizbutton = tk.Button(self,text="We Wizzin", command=lambda: update_theme(app,"I Want To Feel Like A Hacker"))
-        wizbutton.grid(column=1, row=4)
+        themes_label = tk.Label(self, text="Theme:", font=tkfont.Font(family='Helvetica'))
+        themes_label.grid(column=2, row=0, padx=0, pady=10)
+         
+        theme_options = [color_themes[x][0] for x in range(len(color_themes))]
+        selected_theme = StringVar()
+        selected_theme.set(current_theme)
 
+        selected_theme.trace("w", lambda *args: update_theme(selected_theme.get()))
+
+        theme_menu = OptionMenu(self, selected_theme, *theme_options)
+        theme_menu.grid(column=2, row=1)
 
 class EncodePage(tk.Frame):
     image_path = None
@@ -531,8 +544,10 @@ def load_color_themes():
         color_themes.append(new_theme)
     
     
-def update_theme(app, theme_name):
+def update_theme(theme_name):
     global color_themes
+    global current_theme
+    current_theme = theme_name
     #Look for the theme name in color_themes
     theme_index = 0
     for i in range(len(color_themes)):
@@ -540,6 +555,13 @@ def update_theme(app, theme_name):
             bg = color_themes[i][1]
             fg = color_themes[i][2]
             break
+    else:
+        current_theme = "Default"
+        bg = "FFFFFF"
+        fg = "000000"
+
+    save_pref('main', 'Theme', theme_name)
+    selected_theme.set(theme_name)
     
     for frame in app.frames.values():
         frame.config(bg=bg)
@@ -555,14 +577,32 @@ def update_theme(app, theme_name):
             frame.scrolled_text.tag_config('INFO', foreground=fg)
             frame.scrolled_text.tag_config('DEBUG', foreground=fg)
 
-    
-    
-    
+def save_pref(section, key, value):
+    config = configparser.ConfigParser()
+    config.read(CONFIG_PATH)
+    if not section in config.sections():
+        config.add_section(section)
+    config.set(section, key, value)
+
+    with open(CONFIG_PATH, 'w') as f:
+        config.write(f)
+
+def load_pref():
+    config = configparser.ConfigParser()
+    config.read(CONFIG_PATH)
+
+    try:
+        update_theme(config.get('main', 'theme'))
+    except configparser.NoSectionError:
+        update_theme("Default")
+
+
+
 
 if __name__ == "__main__":
     global app
     load_color_themes()
-
     app = App()
+    load_pref()
     app.mainloop()
     
