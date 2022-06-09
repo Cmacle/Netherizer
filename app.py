@@ -56,7 +56,6 @@ class App(tk.Tk):
         frame = self.frames[page_name]
         frame.tkraise()
 
-
 class StartPage(tk.Frame):
 
     def __init__(self, parent, controller):
@@ -354,7 +353,6 @@ class EncodePage(tk.Frame):
             else:
                 steg.logger.log(logging.WARN, "PROCESS ONGOING")
 
-
 class DecodePage(tk.Frame):
     image_path = None
     ouput_path = None
@@ -473,7 +471,6 @@ class DecodePage(tk.Frame):
             else:
                 steg.logger.log(logging.WARN, "PROCESS ONGOING")
 
-
 class ToolTip(object):
 
     def __init__(self, widget):
@@ -504,7 +501,6 @@ class ToolTip(object):
         if tw:
             tw.destroy()
 
-
 def CreateToolTip(widget, text):
     toolTip = ToolTip(widget)
 
@@ -515,7 +511,6 @@ def CreateToolTip(widget, text):
         toolTip.hidetip()
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
-
 
 class QueueHandler(logging.Handler):
     """Class to send logging records to a queue
@@ -530,7 +525,10 @@ class QueueHandler(logging.Handler):
     def emit(self, record):
         self.log_queue.put(record)
 
-def load_color_themes():
+def load_color_themes() -> None:
+    """
+    Load the color themes from config/color-themes.ini
+    """
     global color_themes
     
     config = configparser.ConfigParser()
@@ -542,9 +540,13 @@ def load_color_themes():
     for section in config.sections():
         new_theme = (section, config[section]["bg"], config[section]["fg"])
         color_themes.append(new_theme)
-    
-    
-def update_theme(theme_name):
+  
+def update_theme(theme_name: str) -> None:
+    """Updates the fg and bg colors of all widgets and frames
+
+    Args:
+        theme_name (str): The name of the theme to change the colors to.
+    """
     global color_themes
     global current_theme
     current_theme = theme_name
@@ -577,7 +579,10 @@ def update_theme(theme_name):
             frame.scrolled_text.tag_config('INFO', foreground=fg)
             frame.scrolled_text.tag_config('DEBUG', foreground=fg)
 
-def save_pref(section, key, value):
+def save_pref(section: str, key: str, value: str) -> None:
+    """
+    Saves the preferences to CONFIG_PATH
+    """
     config = configparser.ConfigParser()
     config.read(CONFIG_PATH)
     if not section in config.sections():
@@ -587,7 +592,10 @@ def save_pref(section, key, value):
     with open(CONFIG_PATH, 'w') as f:
         config.write(f)
 
-def load_pref():
+def load_pref() -> None:
+    """
+    Loads the preferences from CONFIG_PATH
+    """
     config = configparser.ConfigParser()
     config.read(CONFIG_PATH)
 
@@ -595,9 +603,6 @@ def load_pref():
         update_theme(config.get('main', 'theme'))
     except configparser.NoSectionError:
         update_theme("Default")
-
-
-
 
 if __name__ == "__main__":
     global app
