@@ -34,7 +34,7 @@ class App(tk.Tk):
         container.grid_columnconfigure(1, weight=1)
         self.title("Netherizer")
         try:
-            self.iconbitmap("Icon.ico")
+            self.iconbitmap("assets/Icon.ico")
         except TclError:
             pass
 
@@ -64,7 +64,7 @@ class StartPage(tk.Frame):
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        title = tk.Label(self, text="NETHERIZER v 1.1",
+        title = tk.Label(self, text="NETHERIZER v.1.3",
                          font=controller.title_font)
         title.grid(column=1, row=0, sticky="N", padx=250)
 
@@ -81,7 +81,7 @@ class StartPage(tk.Frame):
         button2.grid(column=1, row=3, pady=(10, 0), )
         
         themes_label = tk.Label(self, text="Theme:", font=tkfont.Font(family='Helvetica'))
-        themes_label.grid(column=2, row=0, padx=0, pady=10)
+        themes_label.grid(column=1, row=4, pady=(50, 0))
          
         theme_options = [color_themes[x][0] for x in range(len(color_themes))]
         selected_theme = StringVar()
@@ -90,7 +90,7 @@ class StartPage(tk.Frame):
         selected_theme.trace("w", lambda *args: update_theme(selected_theme.get()))
 
         theme_menu = OptionMenu(self, selected_theme, *theme_options)
-        theme_menu.grid(column=2, row=1)
+        theme_menu.grid(column=1, row=5)
 
 class EncodePage(tk.Frame):
     image_path = None
@@ -535,10 +535,14 @@ def load_color_themes() -> None:
     config.read("config/color-themes.ini")
     
     # Add default theme no matter what
-    color_themes.append(("Default", "#FFFFFF", "#000000"))
+    color_themes.append(("Default", "#FFFFFF", "#000000", "#FFFFFF"))
     
     for section in config.sections():
-        new_theme = (section, config[section]["bg"], config[section]["fg"])
+        # If the section has a widget background (wbg) use it, otherwise use the bg
+        if config.has_option(section, "wbg"):
+            new_theme = (section, config[section]["bg"], config[section]["fg"], config[section]["wbg"])
+        else:
+            new_theme = (section, config[section]["bg"], config[section]["fg"], config[section]["bg"])
         color_themes.append(new_theme)
   
 def update_theme(theme_name: str) -> None:
@@ -556,11 +560,13 @@ def update_theme(theme_name: str) -> None:
         if color_themes[i][0] == theme_name:
             bg = color_themes[i][1]
             fg = color_themes[i][2]
+            wbg = color_themes[i][3]
             break
     else:
         current_theme = "Default"
-        bg = "FFFFFF"
-        fg = "000000"
+        bg = "#FFFFFF"
+        fg = "#000000"
+        wbg = "#FFFFFF"
 
     save_pref('main', 'Theme', theme_name)
     selected_theme.set(theme_name)
@@ -568,14 +574,16 @@ def update_theme(theme_name: str) -> None:
     for frame in app.frames.values():
         frame.config(bg=bg)
         for widget in frame.winfo_children():
-            if isinstance(widget, (tk.Label, tk.Button)):
+            if isinstance(widget, tk.Label):
                 widget.config(bg=bg, fg=fg)
+            elif isinstance(widget, tk.Button):
+                widget.config(bg=wbg, fg=fg)
             elif isinstance(widget, OptionMenu):
-                widget.config(bg=bg, fg=fg)
-                widget["menu"].config(bg=bg, fg=fg)
+                widget.config(bg=wbg, fg=fg)
+                widget["menu"].config(bg=wbg, fg=fg)
         
         if hasattr(frame, "scrolled_text"):
-            frame.scrolled_text.config(bg=bg)
+            frame.scrolled_text.config(bg=wbg)
             frame.scrolled_text.tag_config('INFO', foreground=fg)
             frame.scrolled_text.tag_config('DEBUG', foreground=fg)
 
