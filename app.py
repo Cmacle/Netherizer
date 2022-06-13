@@ -2,20 +2,24 @@ import logging
 import os
 import queue
 import tkinter as tk
+import configparser
 from threading import Thread
 from tkinter import LEFT, SOLID, SW, Label, font as tkfont
 from tkinter import filedialog, OptionMenu, StringVar, TclError, Toplevel
+from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 import steg
 
 LOG_LEVEL = 20
+CONFIG_PATH = "config/prefs.ini"
 
 
+color_themes = []
+current_theme = "Default"
 class App(tk.Tk):
-
+    
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-
         self.title_font = tkfont.Font(family='Helvetica',
                                       size=18,
                                       weight="bold",
@@ -30,7 +34,7 @@ class App(tk.Tk):
         container.grid_columnconfigure(1, weight=1)
         self.title("Netherizer")
         try:
-            self.iconbitmap("Icon.ico")
+            self.iconbitmap("assets/Icon.ico")
         except TclError:
             pass
 
@@ -52,15 +56,15 @@ class App(tk.Tk):
         frame = self.frames[page_name]
         frame.tkraise()
 
-
 class StartPage(tk.Frame):
 
     def __init__(self, parent, controller):
+        global selected_theme
         tk.Frame.__init__(self, parent)
         self.controller = controller
         self.rowconfigure(21, weight=1)
         self.columnconfigure(21, weight=1)
-        title = tk.Label(self, text="NETHERIZER v 1.1",
+        title = tk.Label(self, text="NETHERIZER v.1.3",
                          font=controller.title_font)
         title.grid(column=1, row=0, sticky="N", padx=250)
 
@@ -75,7 +79,18 @@ class StartPage(tk.Frame):
                             width=10, height=2)
         button1.grid(column=1, row=2, pady=(50, 0), )
         button2.grid(column=1, row=3, pady=(10, 0), )
+        
+        themes_label = tk.Label(self, text="Theme:", font=tkfont.Font(family='Helvetica'))
+        themes_label.grid(column=1, row=4, pady=(50, 0))
+         
+        theme_options = [color_themes[x][0] for x in range(len(color_themes))]
+        selected_theme = StringVar()
+        selected_theme.set(current_theme)
 
+        selected_theme.trace("w", lambda *args: update_theme(selected_theme.get()))
+
+        theme_menu = OptionMenu(self, selected_theme, *theme_options)
+        theme_menu.grid(column=1, row=5)
 
 class EncodePage(tk.Frame):
     image_path = None
@@ -338,7 +353,6 @@ class EncodePage(tk.Frame):
             else:
                 steg.logger.log(logging.WARN, "PROCESS ONGOING")
 
-
 class DecodePage(tk.Frame):
     image_path = None
     ouput_path = None
@@ -457,7 +471,6 @@ class DecodePage(tk.Frame):
             else:
                 steg.logger.log(logging.WARN, "PROCESS ONGOING")
 
-
 class ToolTip(object):
 
     def __init__(self, widget):
@@ -488,7 +501,6 @@ class ToolTip(object):
         if tw:
             tw.destroy()
 
-
 def CreateToolTip(widget, text):
     toolTip = ToolTip(widget)
 
@@ -499,7 +511,6 @@ def CreateToolTip(widget, text):
         toolTip.hidetip()
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
-
 
 class QueueHandler(logging.Handler):
     """Class to send logging records to a queue
@@ -514,8 +525,97 @@ class QueueHandler(logging.Handler):
     def emit(self, record):
         self.log_queue.put(record)
 
+def load_color_themes() -> None:
+    """
+    Load the color themes from config/color-themes.ini
+    """
+    global color_themes
+    
+    config = configparser.ConfigParser()
+    config.read("config/color-themes.ini")
+    
+    # Add default theme no matter what
+    color_themes.append(("Default", "#FFFFFF", "#000000", "#FFFFFF"))
+    
+    for section in config.sections():
+        # If the section has a widget background (wbg) use it, otherwise use the bg
+        if config.has_option(section, "wbg"):
+            new_theme = (section, config[section]["bg"], config[section]["fg"], config[section]["wbg"])
+        else:
+            new_theme = (section, config[section]["bg"], config[section]["fg"], config[section]["bg"])
+        color_themes.append(new_theme)
+  
+def update_theme(theme_name: str) -> None:
+    """Updates the fg and bg colors of all widgets and frames
+
+    Args:
+        theme_name (str): The name of the theme to change the colors to.
+    """
+    global color_themes
+    global current_theme
+    current_theme = theme_name
+    #Look for the theme name in color_themes
+    theme_index = 0
+    for i in range(len(color_themes)):
+        if color_themes[i][0] == theme_name:
+            bg = color_themes[i][1]
+            fg = color_themes[i][2]
+            wbg = color_themes[i][3]
+            break
+    else:
+        current_theme = "Default"
+        bg = "#FFFFFF"
+        fg = "#000000"
+        wbg = "#FFFFFF"
+
+    save_pref('main', 'Theme', theme_name)
+    selected_theme.set(theme_name)
+    
+    for frame in app.frames.values():
+        frame.config(bg=bg)
+        for widget in frame.winfo_children():
+            if isinstance(widget, tk.Label):
+                widget.config(bg=bg, fg=fg)
+            elif isinstance(widget, tk.Button):
+                widget.config(bg=wbg, fg=fg)
+            elif isinstance(widget, OptionMenu):
+                widget.config(bg=wbg, fg=fg)
+                widget["menu"].config(bg=wbg, fg=fg)
+        
+        if hasattr(frame, "scrolled_text"):
+            frame.scrolled_text.config(bg=wbg)
+            frame.scrolled_text.tag_config('INFO', foreground=fg)
+            frame.scrolled_text.tag_config('DEBUG', foreground=fg)
+
+def save_pref(section: str, key: str, value: str) -> None:
+    """
+    Saves the preferences to CONFIG_PATH
+    """
+    config = configparser.ConfigParser()
+    config.read(CONFIG_PATH)
+    if not section in config.sections():
+        config.add_section(section)
+    config.set(section, key, value)
+
+    with open(CONFIG_PATH, 'w') as f:
+        config.write(f)
+
+def load_pref() -> None:
+    """
+    Loads the preferences from CONFIG_PATH
+    """
+    config = configparser.ConfigParser()
+    config.read(CONFIG_PATH)
+
+    try:
+        update_theme(config.get('main', 'theme'))
+    except configparser.NoSectionError:
+        update_theme("Default")
 
 if __name__ == "__main__":
+    global app
+    load_color_themes()
     app = App()
+    load_pref()
     app.mainloop()
     
